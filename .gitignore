@@ -14,3 +14,4 @@ captures/
 # Keep a google-services.json.example with placeholder values instead.
 app/google-services.json
 .kotlin/
+.kotlin/
