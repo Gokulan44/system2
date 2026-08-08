@@ -2,6 +2,8 @@ package com.systemmonitor.di
 
 import android.content.Context
 import androidx.room.Room
+import com.systemmonitor.applock.database.AppLockDao
+import com.systemmonitor.applock.database.AppLockDatabase
 import com.systemmonitor.core.Constants
 import com.systemmonitor.local.database.AppDatabase
 import com.systemmonitor.local.database.DatabaseMigrations
@@ -11,6 +13,8 @@ import com.systemmonitor.local.database.dao.MemoryDao
 import com.systemmonitor.local.database.dao.NetworkDao
 import com.systemmonitor.local.database.dao.StorageDao
 import com.systemmonitor.local.database.dao.WifiDao
+import com.systemmonitor.securityanalysis.database.ScanDao
+import com.systemmonitor.securityanalysis.database.SecurityDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,9 +31,6 @@ object DatabaseModule {
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, Constants.DATABASE_NAME)
             .addMigrations(*DatabaseMigrations.ALL)
-            // Pre-release only: no shipped version has real user data yet, so a
-            // destructive fallback is fine for schema churn. Remove this and add
-            // a real Migration in DatabaseMigrations.kt before the first release.
             .fallbackToDestructiveMigration()
             .build()
 
@@ -50,4 +51,24 @@ object DatabaseModule {
 
     @Provides
     fun provideWifiDao(db: AppDatabase): WifiDao = db.wifiDao()
+
+    @Provides
+    @Singleton
+    fun provideAppLockDatabase(@ApplicationContext context: Context): AppLockDatabase =
+        Room.databaseBuilder(context, AppLockDatabase::class.java, "app_lock.db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
+    fun provideAppLockDao(db: AppLockDatabase): AppLockDao = db.appLockDao()
+
+    @Provides
+    @Singleton
+    fun provideSecurityDatabase(@ApplicationContext context: Context): SecurityDatabase =
+        Room.databaseBuilder(context, SecurityDatabase::class.java, "security_analysis.db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
+    fun provideScanDao(db: SecurityDatabase): ScanDao = db.scanDao()
 }
