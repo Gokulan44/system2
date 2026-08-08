@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- SSID/BSSID via WifiManager.connectionInfo require this on API < 33.
+         Intentionally NOT requested by default — WifiMonitor degrades
+         gracefully (signal strength still works, SSID shows as null) so we
+         don't force a location prompt just to read a Wi-Fi name. Uncomment
+         and add a runtime request/rationale screen if SSID becomes a hard
+         requirement for a feature.
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    -->
+
+    <!-- PermissionAnalyzer calls PackageManager.getInstalledPackages(), which
+         on API 30+ only sees packages declared in <queries> unless this is
+         granted. QUERY_ALL_PACKAGES is a restricted Play Store permission
+         requiring a declared core-use case (this app's security-scanning
+         purpose qualifies, but it needs a Play Console declaration form at
+         publish time) — left commented so debug builds aren't blocked on it.
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    -->
+
+    <application
+        android:name=".SystemMonitorApplication"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.SystemMonitor">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SystemMonitor">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- WorkManager's default initializer is disabled implicitly via
+             Configuration.Provider on the Application class (see
+             SystemMonitorApplication.workManagerConfiguration), which is
+             required for HiltWorkerFactory to inject worker dependencies. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge"
+            xmlns:tools="http://schemas.android.com/tools">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+    </application>
+
+</manifest>
