@@ -42,8 +42,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 @Composable
 fun ReportsScreen() {
+    var isGenerating by remember { mutableStateOf(false) }
+    var generateProgress by remember { mutableStateOf(0.0f) }
+    var reportSuccess by remember { mutableStateOf(false) }
+
     val bgGradient = Brush.verticalGradient(
         colors = listOf(
             Color(0xFF080C16),
@@ -132,11 +142,47 @@ fun ReportsScreen() {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            ExportButton(icon = Icons.Default.PictureAsPdf, text = "Export PDF", gradient = listOf(Color(0xFFEF4444), Color(0xFFDC2626)))
-            Spacer(modifier = Modifier.height(10.dp))
-            ExportButton(icon = Icons.Default.TableChart, text = "Export CSV", gradient = listOf(Color(0xFF10B981), Color(0xFF059669)))
-            Spacer(modifier = Modifier.height(10.dp))
-            ExportButton(icon = Icons.Default.Assessment, text = "Export JSON", gradient = listOf(Color(0xFFA855F7), Color(0xFF7C3AED)))
+            if (isGenerating) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF0F172A)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Generating System Report...", color = Color.White, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { 0.75f },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF00E5FF),
+                            trackColor = Color(0xFF1E293B)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("75% Completed", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    }
+                }
+            } else {
+                ExportButton(
+                    icon = Icons.Default.PictureAsPdf,
+                    text = "Export PDF Report",
+                    gradient = listOf(Color(0xFFEF4444), Color(0xFFDC2626)),
+                    onClick = { isGenerating = true }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                ExportButton(
+                    icon = Icons.Default.TableChart,
+                    text = "Export CSV Data",
+                    gradient = listOf(Color(0xFF10B981), Color(0xFF059669)),
+                    onClick = { isGenerating = true }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                ExportButton(
+                    icon = Icons.Default.Assessment,
+                    text = "Export JSON Logs",
+                    gradient = listOf(Color(0xFFA855F7), Color(0xFF7C3AED)),
+                    onClick = { isGenerating = true }
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -184,10 +230,11 @@ private fun ReportCategoryCard(
 private fun ExportButton(
     icon: ImageVector,
     text: String,
-    gradient: List<Color>
+    gradient: List<Color>,
+    onClick: () -> Unit = {}
 ) {
     Button(
-        onClick = { },
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)

@@ -15,6 +15,9 @@ import com.systemmonitor.local.database.entity.NetworkEntity
 import com.systemmonitor.local.database.entity.StorageEntity
 import com.systemmonitor.local.database.entity.WifiEntity
 
+import com.systemmonitor.local.database.dao.LaptopDao
+import com.systemmonitor.local.database.entity.LaptopEntity
+
 /**
  * Add new @Entity classes to `entities` and a matching `abstract fun xDao()`
  * as each vertical slice (Cpu, AppUsage, ...) is built out.
@@ -27,10 +30,11 @@ import com.systemmonitor.local.database.entity.WifiEntity
         StorageEntity::class,
         InstalledAppEntity::class,
         NetworkEntity::class,
-        WifiEntity::class
+        WifiEntity::class,
+        LaptopEntity::class
     ],
-    version = 2,
-    exportSchema = true
+    version = 3,
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun batteryDao(): BatteryDao
@@ -39,4 +43,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun installedAppDao(): InstalledAppDao
     abstract fun networkDao(): NetworkDao
     abstract fun wifiDao(): WifiDao
+    abstract fun laptopDao(): LaptopDao
 }
