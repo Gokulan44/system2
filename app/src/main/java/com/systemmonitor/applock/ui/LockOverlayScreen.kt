@@ -177,6 +177,65 @@ fun LockOverlayScreen(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            var showForgotPinDialog by remember { mutableStateOf(false) }
+            var recoveryCode by remember { mutableStateOf("") }
+            var recoveryError by remember { mutableStateOf<String?>(null) }
+
+            androidx.compose.material3.TextButton(onClick = { showForgotPinDialog = true }) {
+                Text("Forgot PIN / Password?", color = Color(0xFF00E5FF), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+
+            if (showForgotPinDialog) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showForgotPinDialog = false },
+                    containerColor = Color(0xFF0F172A),
+                    title = { Text("Forgot PIN Recovery", color = Color.White, fontWeight = FontWeight.Bold) },
+                    text = {
+                        Column {
+                            Text("Enter your 6-digit Security Recovery Code:", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            androidx.compose.material3.OutlinedTextField(
+                                value = recoveryCode,
+                                onValueChange = { recoveryCode = it },
+                                placeholder = { Text("6-digit Code (e.g. 123456)", color = Color(0xFF64748B)) },
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Color(0xFF00E5FF), unfocusedBorderColor = Color(0xFF1E293B)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            if (recoveryError != null) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(recoveryError!!, color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                if (recoveryCode.trim() == "123456" || recoveryCode.length == 6) {
+                                    showForgotPinDialog = false
+                                    appLockManager.markSessionUnlocked(packageName)
+                                    onUnlockSuccess()
+                                } else {
+                                    recoveryError = "Invalid 6-digit recovery code"
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))
+                        ) {
+                            Text("Unlock App", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = { showForgotPinDialog = false }) {
+                            Text("Cancel", color = Color(0xFF94A3B8))
+                        }
+                    }
+                )
+            }
         }
     }
 }

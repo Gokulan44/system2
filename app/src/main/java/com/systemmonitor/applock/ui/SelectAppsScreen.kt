@@ -95,47 +95,48 @@ fun SelectAppsScreen(
                 .padding(16.dp)
         ) {
             // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBackClick) {
+            com.systemmonitor.applock.ui.components.AppLockHeader(
+                title = "App Lock Protection",
+                subtitle = "${lockedPackageNames.size} apps locked",
+                onBackClick = onBackClick,
+                trailingContent = {
+                    IconButton(onClick = onNavigateToChooseMethod) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Column {
-                        Text(
-                            text = "App Lock",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${lockedAppsList.size} apps protected",
-                            color = Color(0xFF00E676),
-                            fontSize = 12.sp
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Lock Settings",
+                            tint = Color(0xFF00E5FF)
                         )
                     }
                 }
+            )
 
-                IconButton(onClick = onNavigateToChooseMethod) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Choose Lock Method",
-                        tint = Color(0xFF00E5FF)
-                    )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Permission Warning Banner
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+            var hasUsage by remember { mutableStateOf(appLockManager.hasUsageStatsPermission()) }
+            var hasOverlay by remember { mutableStateOf(appLockManager.hasOverlayPermission()) }
+
+            androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                        hasUsage = appLockManager.hasUsageStatsPermission()
+                        hasOverlay = appLockManager.hasOverlayPermission()
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            com.systemmonitor.applock.ui.components.AppLockPermissionBanner(
+                hasUsage = hasUsage,
+                hasOverlay = hasOverlay,
+                onGrantUsage = { context.startActivity(appLockManager.getUsageAccessIntent()) },
+                onGrantOverlay = { context.startActivity(appLockManager.getOverlayPermissionIntent()) }
+            )
 
             // Search Bar
             OutlinedTextField(
@@ -161,69 +162,16 @@ fun SelectAppsScreen(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filteredApps) { app ->
                     val isProtected = lockedPackageNames.contains(app.packageName)
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(12.dp)),
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF0F172A).copy(alpha = 0.75f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isProtected) Color(0xFF00E676).copy(alpha = 0.2f) else Color(0xFF334155)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isProtected) Icons.Default.Lock else Icons.Default.LockOpen,
-                                        contentDescription = null,
-                                        tint = if (isProtected) Color(0xFF00E676) else Color(0xFF94A3B8),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                Column {
-                                    Text(
-                                        text = app.appName,
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = app.packageName,
-                                        color = Color(0xFF94A3B8),
-                                        fontSize = 11.sp
-                                    )
-                                }
+                    com.systemmonitor.applock.ui.components.AppListItem(
+                        appName = app.appName,
+                        packageName = app.packageName,
+                        isLocked = isProtected,
+                        onToggleLock = { check ->
+                            scope.launch {
+                                appLockManager.setAppLocked(app.packageName, app.appName, check)
                             }
-
-                            Switch(
-                                checked = isProtected,
-                                onCheckedChange = { check ->
-                                    scope.launch {
-                                        appLockManager.setAppLocked(app.packageName, app.appName, check)
-                                    }
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF00E676),
-                                    uncheckedThumbColor = Color(0xFF94A3B8),
-                                    uncheckedTrackColor = Color(0xFF1E293B)
-                                )
-                            )
                         }
-                    }
+                    )
                 }
             }
         }

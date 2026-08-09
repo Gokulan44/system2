@@ -43,13 +43,29 @@ import com.systemmonitor.features.laptop.LaptopDetailsScreen
 import com.systemmonitor.features.laptop.ProcessesScreen
 import com.systemmonitor.features.network.NetworkCenterScreen
 import com.systemmonitor.features.parental.ParentalControlScreen
-import com.systemmonitor.features.profile.EditProfileScreen
-import com.systemmonitor.features.profile.ProfileScreen
+import com.systemmonitor.features.profile.presentation.profile.ProfileScreen
+import com.systemmonitor.features.profile.presentation.edit.EditProfileScreen
+import com.systemmonitor.features.profile.presentation.security.AccountSecurityScreen
+import com.systemmonitor.features.profile.presentation.devices.MyDevicesScreen
+import com.systemmonitor.features.profile.presentation.login.LoginHistoryScreen
+import com.systemmonitor.features.profile.presentation.activity.ActivityHistoryScreen
+import com.systemmonitor.features.profile.presentation.HelpSupportScreen
+import com.systemmonitor.features.profile.presentation.ProfileAboutScreen
+import com.systemmonitor.features.profile.presentation.ProfileNotificationSettingsScreen
+import com.systemmonitor.features.profile.presentation.ProfilePreferencesScreen
+import com.systemmonitor.features.profile.presentation.ProfilePrivacyScreen
+import com.systemmonitor.features.profile.presentation.SubscriptionScreen
 import com.systemmonitor.features.profile.ProfileUpdatedScreen
 import com.systemmonitor.features.remote.RemoteControlScreen
 import com.systemmonitor.features.reports.ReportsScreen
 import com.systemmonitor.features.screen.ScreenViewerScreen
-import com.systemmonitor.features.security.SecurityScreen
+import com.systemmonitor.features.security.domain.model.SecurityScan
+import com.systemmonitor.features.security.presentation.dashboard.SecurityDashboardScreen
+import com.systemmonitor.features.security.presentation.history.ScanHistoryScreen
+import com.systemmonitor.features.security.presentation.result.ResolveActionsScreen
+import com.systemmonitor.features.security.presentation.result.ScanResultScreen
+import com.systemmonitor.features.security.presentation.result.SecurityReportScreen
+import com.systemmonitor.features.security.presentation.scan.SecurityScanScreen
 import com.systemmonitor.features.usage.AppUsageScreen
 import com.systemmonitor.features.usage.UsageAnalyticsScreen
 import com.systemmonitor.features.usage.UsageDetailsScreen
@@ -82,6 +98,7 @@ fun MainScreenContainer(
     settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     var currentDestination by remember { mutableStateOf<NavDestination>(NavDestination.Home) }
+    var lastScanResult by remember { mutableStateOf<SecurityScan?>(null) }
 
     var userName by remember { mutableStateOf("Admin") }
     var userEmail by remember { mutableStateOf("admin@systemmonitor.com") }
@@ -172,9 +189,56 @@ fun MainScreenContainer(
                 is NavDestination.Processes -> ProcessesScreen(
                     onBackClick = { currentDestination = NavDestination.LaptopDetails }
                 )
-                is NavDestination.SecurityCenter -> SecurityScreen(
-                    onNavigateToSelectApps = { currentDestination = NavDestination.AppLock }
+                is NavDestination.SecurityCenter -> {
+                    if (lastScanResult != null) {
+                        ScanResultScreen(
+                            scanResult = lastScanResult!!,
+                            onViewThreatDetails = { currentDestination = NavDestination.ResolveActions },
+                            onBackToDashboard = { currentDestination = NavDestination.SecurityReport }
+                        )
+                    } else {
+                        SecurityDashboardScreen(
+                            onStartScan = { currentDestination = NavDestination.SecurityScanProgress },
+                            onNavigateToHistory = { currentDestination = NavDestination.ScanHistory },
+                            onBackClick = { currentDestination = NavDestination.Home }
+                        )
+                    }
+                }
+                is NavDestination.SecurityScanProgress -> SecurityScanScreen(
+                    onScanComplete = { result ->
+                        lastScanResult = result
+                        currentDestination = NavDestination.SecurityCenter
+                    },
+                    onCancelClick = { currentDestination = NavDestination.SecurityCenter }
                 )
+                is NavDestination.ScanHistory -> ScanHistoryScreen(
+                    onBackClick = { currentDestination = NavDestination.SecurityCenter }
+                )
+                is NavDestination.ResolveActions -> {
+                    val threat = lastScanResult?.threats?.firstOrNull() ?: com.systemmonitor.features.security.domain.model.ThreatInfo(
+                        id = "default_threat",
+                        title = "Suspicious Application Detected",
+                        description = "Application matches untrusted signatures",
+                        severity = com.systemmonitor.features.security.domain.model.ThreatSeverity.HIGH,
+                        category = "App Security",
+                        recommendedAction = "Uninstall application"
+                    )
+                    ResolveActionsScreen(
+                        threat = threat,
+                        onResolveAction = { currentDestination = NavDestination.SecurityReport },
+                        onBackClick = { currentDestination = NavDestination.SecurityCenter }
+                    )
+                }
+                is NavDestination.SecurityReport -> {
+                    val scan = lastScanResult ?: com.systemmonitor.features.security.domain.model.SecurityScan()
+                    SecurityReportScreen(
+                        scanResult = scan,
+                        onBackToDashboard = {
+                            lastScanResult = null
+                            currentDestination = NavDestination.SecurityCenter
+                        }
+                    )
+                }
                 is NavDestination.NetworkCenter -> NetworkCenterScreen(
                     onBackClick = { currentDestination = NavDestination.Home }
                 )
@@ -217,27 +281,56 @@ fun MainScreenContainer(
                 is NavDestination.Reports -> ReportsScreen()
                 is NavDestination.Alerts -> AlertsScreen()
                 is NavDestination.Profile -> ProfileScreen(
-                    userName = userName,
-                    userEmail = userEmail,
                     onNavigateToEditProfile = { currentDestination = NavDestination.EditProfile },
-                    onNavigateToDevices = { currentDestination = NavDestination.DeviceCenter }
+                    onNavigateToSecurity = { currentDestination = NavDestination.ProfileSecurity },
+                    onNavigateToDevices = { currentDestination = NavDestination.ProfileDevices },
+                    onNavigateToLoginHistory = { currentDestination = NavDestination.ProfileLoginHistory },
+                    onNavigateToActivityHistory = { currentDestination = NavDestination.ProfileActivityHistory },
+                    onNavigateToNotifications = { currentDestination = NavDestination.ProfileNotifications },
+                    onNavigateToPrivacy = { currentDestination = NavDestination.ProfilePrivacy },
+                    onNavigateToPreferences = { currentDestination = NavDestination.ProfilePreferences },
+                    onNavigateToSubscription = { currentDestination = NavDestination.ProfileSubscription },
+                    onNavigateToSupport = { currentDestination = NavDestination.ProfileSupport },
+                    onNavigateToAbout = { currentDestination = NavDestination.ProfileAbout },
+                    onSignOut = { currentDestination = NavDestination.Login },
+                    onBackClick = { currentDestination = NavDestination.Home }
                 )
                 is NavDestination.EditProfile -> EditProfileScreen(
-                    currentName = userName,
-                    currentEmail = userEmail,
-                    currentPhone = userPhone,
-                    currentCountry = userCountry,
-                    onSaveProfile = { name, email, phone, country ->
-                        userName = name
-                        userEmail = email
-                        userPhone = phone
-                        userCountry = country
-                        currentDestination = NavDestination.ProfileUpdated
-                    },
+                    onSaveSuccess = { currentDestination = NavDestination.ProfileUpdated },
                     onBackClick = { currentDestination = NavDestination.Profile }
                 )
                 is NavDestination.ProfileUpdated -> ProfileUpdatedScreen(
                     onBackToProfile = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileSecurity -> AccountSecurityScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileDevices -> MyDevicesScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileLoginHistory -> LoginHistoryScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileActivityHistory -> ActivityHistoryScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileNotifications -> ProfileNotificationSettingsScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfilePrivacy -> ProfilePrivacyScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfilePreferences -> ProfilePreferencesScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileSubscription -> SubscriptionScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileSupport -> HelpSupportScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
+                )
+                is NavDestination.ProfileAbout -> ProfileAboutScreen(
+                    onBackClick = { currentDestination = NavDestination.Profile }
                 )
                 is NavDestination.Login -> LoginScreen(
                     authViewModel = authViewModel,

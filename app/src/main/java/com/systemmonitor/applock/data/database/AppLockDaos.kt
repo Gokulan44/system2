@@ -31,3 +31,12 @@ interface AuthenticationLogDao {
     @Query("DELETE FROM authentication_logs_table")
     suspend fun clearLogs()
 }
+
+@Dao
+interface AppLockSettingsDao {
+    @Query("SELECT * FROM applock_settings_table WHERE id = 1")
+    fun getSettings(): Flow<com.systemmonitor.applock.data.entity.AppLockSettingsEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveSettings(settings: com.systemmonitor.applock.data.entity.AppLockSettingsEntity)
+}

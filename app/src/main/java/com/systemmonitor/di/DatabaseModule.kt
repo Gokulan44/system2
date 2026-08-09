@@ -75,5 +75,34 @@ object DatabaseModule {
             .build()
 
     @Provides
-    fun provideScanDao(db: SecurityDatabase): ScanDao = db.scanDao()
+    @Singleton
+    fun provideFeatureSecurityDatabase(@ApplicationContext context: Context): com.systemmonitor.features.security.data.FeatureSecurityDatabase =
+        Room.databaseBuilder(context, com.systemmonitor.features.security.data.FeatureSecurityDatabase::class.java, "feature_security.db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
+    fun provideSecurityScanDao(db: com.systemmonitor.features.security.data.FeatureSecurityDatabase): com.systemmonitor.features.security.data.dao.SecurityScanDao = db.securityScanDao()
+
+    @Provides
+    @Singleton
+    fun provideProfileDatabase(@ApplicationContext context: Context): com.systemmonitor.features.profile.data.ProfileDatabase =
+        Room.databaseBuilder(context, com.systemmonitor.features.profile.data.ProfileDatabase::class.java, "profile_db.db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
+    fun provideUserProfileDao(db: com.systemmonitor.features.profile.data.ProfileDatabase): com.systemmonitor.features.profile.data.dao.UserProfileDao = db.userProfileDao()
+
+    @Provides
+    fun provideLoginHistoryDao(db: com.systemmonitor.features.profile.data.ProfileDatabase): com.systemmonitor.features.profile.data.dao.LoginHistoryDao = db.loginHistoryDao()
+
+    @Provides
+    fun provideActivityHistoryDao(db: com.systemmonitor.features.profile.data.ProfileDatabase): com.systemmonitor.features.profile.data.dao.ActivityHistoryDao = db.activityHistoryDao()
+
+    @Provides
+    fun provideDeviceSessionDao(db: com.systemmonitor.features.profile.data.ProfileDatabase): com.systemmonitor.features.profile.data.dao.DeviceSessionDao = db.deviceSessionDao()
+
+    @Provides
+    fun provideNotificationPreferenceDao(db: com.systemmonitor.features.profile.data.ProfileDatabase): com.systemmonitor.features.profile.data.dao.NotificationPreferenceDao = db.notificationPreferenceDao()
 }

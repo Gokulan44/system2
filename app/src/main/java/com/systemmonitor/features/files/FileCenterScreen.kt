@@ -64,11 +64,27 @@ import kotlinx.coroutines.launch
 fun FileCenterScreen(
     dashboardViewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val junkCleanerEngine = remember { JunkCleanerEngine(context) }
     val state by dashboardViewModel.uiState.collectAsState()
     var isCleaning by remember { mutableStateOf(false) }
-    var junkSizeMb by remember { mutableStateOf(1450) }
+    var junkSizeMb by remember { mutableStateOf(1870) }
     var cleanSuccessMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var hasAllFilesPermission by remember { mutableStateOf(junkCleanerEngine.hasAllFilesPermission()) }
+
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasAllFilesPermission = junkCleanerEngine.hasAllFilesPermission()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val bgGradient = Brush.verticalGradient(
         colors = listOf(
@@ -125,7 +141,42 @@ fun FileCenterScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Storage Permission Warning Banner
+            if (!hasAllFilesPermission) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0xFFF59E0B).copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF0F172A).copy(alpha = 0.9f)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "⚠️ All Files Access Permission Required",
+                            color = Color(0xFFF59E0B),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "File Center requires All Files Access permission to scan and clean junk cache across storage directories.",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { context.startActivity(junkCleanerEngine.getAllFilesPermissionIntent()) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Grant All Files Access", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             // Storage Cleaner Action Card
             Surface(

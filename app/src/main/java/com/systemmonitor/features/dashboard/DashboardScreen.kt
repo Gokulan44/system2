@@ -103,7 +103,7 @@ fun DashboardScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 // 1. Top Header Bar
-                TopHeaderSection()
+                TopHeaderSection(onNavigateTo = onNavigateTo)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -139,7 +139,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun TopHeaderSection() {
+private fun TopHeaderSection(onNavigateTo: (com.systemmonitor.navigation.NavDestination) -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -194,7 +194,7 @@ private fun TopHeaderSection() {
                     }
                 }
             ) {
-                IconButton(onClick = { }) {
+                IconButton(onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.Alerts) }) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Notifications",
@@ -203,7 +203,7 @@ private fun TopHeaderSection() {
                 }
             }
 
-            IconButton(onClick = { }) {
+            IconButton(onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.Settings) }) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Settings",
