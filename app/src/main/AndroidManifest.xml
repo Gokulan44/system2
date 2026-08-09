@@ -4,25 +4,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <!-- SSID/BSSID via WifiManager.connectionInfo require this on API < 33.
-         Intentionally NOT requested by default — WifiMonitor degrades
-         gracefully (signal strength still works, SSID shows as null) so we
-         don't force a location prompt just to read a Wi-Fi name. Uncomment
-         and add a runtime request/rationale screen if SSID becomes a hard
-         requirement for a feature.
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    -->
-
-    <!-- PermissionAnalyzer calls PackageManager.getInstalledPackages(), which
-         on API 30+ only sees packages declared in <queries> unless this is
-         granted. QUERY_ALL_PACKAGES is a restricted Play Store permission
-         requiring a declared core-use case (this app's security-scanning
-         purpose qualifies, but it needs a Play Console declaration form at
-         publish time) — left commented so debug builds aren't blocked on it.
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
-    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" xmlns:tools="http://schemas.android.com/tools" />
 
     <application
         android:name=".SystemMonitorApplication"
@@ -41,6 +25,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".applock.ui.LockOverlayActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SystemMonitor"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true" />
+
+        <service
+            android:name=".applock.AppLockService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <receiver
+            android:name=".applock.AppLockBootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- WorkManager's default initializer is disabled implicitly via
              Configuration.Provider on the Application class (see

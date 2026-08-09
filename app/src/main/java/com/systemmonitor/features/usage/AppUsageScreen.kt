@@ -2,29 +2,19 @@ package com.systemmonitor.features.usage
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.SignalCellularAlt
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,27 +27,22 @@ import androidx.compose.ui.unit.sp
 data class AppUsageItem(
     val name: String,
     val duration: String,
-    val percentage: Int
+    val percentage: Int,
+    val iconColor: Color
 )
 
 @Composable
-fun AppUsageScreen() {
-    val mostUsedApps = listOf(
-        AppUsageItem("YouTube", "1h 12m", 24),
-        AppUsageItem("Instagram", "54m", 18),
-        AppUsageItem("Chrome", "42m", 14),
-        AppUsageItem("Facebook", "38m", 12),
-        AppUsageItem("WhatsApp", "32m", 10)
-    )
+fun AppUsageScreen(
+    onSelectApp: (appName: String, duration: String) -> Unit = { _, _ -> }
+) {
+    var selectedTimeTab by remember { mutableStateOf(0) } // 0: Today, 1: Daily, 2: Weekly, 3: Monthly
 
-    val days = listOf(
-        Pair("Mon", 0.4f),
-        Pair("Tue", 0.7f),
-        Pair("Wed", 0.5f),
-        Pair("Thu", 0.9f),
-        Pair("Fri", 0.6f),
-        Pair("Sat", 0.8f),
-        Pair("Sun", 0.3f)
+    val mostUsedApps = listOf(
+        AppUsageItem("YouTube", "1h 20m", 28, Color(0xFFEF4444)),
+        AppUsageItem("Instagram", "54m", 20, Color(0xFFEC4899)),
+        AppUsageItem("Chrome", "42m", 16, Color(0xFF3B82F6)),
+        AppUsageItem("Facebook", "38m", 14, Color(0xFF1877F2)),
+        AppUsageItem("WhatsApp", "32m", 12, Color(0xFF25D366))
     )
 
     val bgGradient = Brush.verticalGradient(
@@ -76,48 +61,52 @@ fun AppUsageScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "App Usage",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Track & Manage Usage",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 12.sp
-                    )
-                }
+            Text(
+                text = "App Usage",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF8B5CF6).copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SignalCellularAlt,
-                        contentDescription = null,
-                        tint = Color(0xFF8B5CF6),
-                        modifier = Modifier.size(24.dp)
-                    )
+            // Time Selector Tabs matching Screen 1 (Today, Daily, Weekly, Monthly)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF0F172A))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                val timeTabs = listOf("Today", "Daily", "Weekly", "Monthly")
+                timeTabs.forEachIndexed { index, title ->
+                    val selected = selectedTimeTab == index
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (selected) Color(0xFF3B82F6) else Color.Transparent)
+                            .clickable { selectedTimeTab = index }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            color = if (selected) Color.White else Color(0xFF94A3B8),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Screen Time Header Card
+            // Screen Time Ring Summary Card matching Screen 1 (4h 32m, 78%)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -126,160 +115,120 @@ fun AppUsageScreen() {
                 color = Color(0xFF0F172A).copy(alpha = 0.85f)
             ) {
                 Row(
-                    modifier = Modifier.padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF8B5CF6).copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            tint = Color(0xFF8B5CF6),
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
                     Column {
                         Text(
                             text = "Screen Time",
                             color = Color(0xFF94A3B8),
-                            fontSize = 12.sp
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (selectedTimeTab == 0) "4h 32m" else if (selectedTimeTab == 1) "5h 10m" else if (selectedTimeTab == 2) "28h 15m" else "112h 40m",
+                            color = Color.White,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+
+                    // Progress Ring Gauge (78%)
+                    Box(
+                        modifier = Modifier.size(70.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            progress = { 0.78f },
+                            modifier = Modifier.fillMaxSize(),
+                            color = Color(0xFF00E676),
+                            strokeWidth = 8.dp,
+                            trackColor = Color(0xFF00E5FF)
                         )
                         Text(
-                            text = "4h 32m",
+                            text = "78%",
                             color = Color.White,
-                            fontSize = 26.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = "Today's Total Active Time",
-                            color = Color(0xFF00E5FF),
-                            fontSize = 11.sp
-                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Weekly Bar Chart
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(20.dp)),
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF0F172A).copy(alpha = 0.85f)
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "Weekly Activity",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        days.forEach { (day, ratio) ->
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(16.dp)
-                                        .height((100 * ratio).dp)
-                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(Color(0xFF00E5FF), Color(0xFF3B82F6))
-                                            )
-                                        )
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(text = day, color = Color(0xFF94A3B8), fontSize = 10.sp)
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // Most Used Apps List
+            // Usage by App Section matching Screen 1
             Text(
-                text = "Most Used Apps",
+                text = "Usage by App",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             mostUsedApps.forEach { app ->
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(12.dp)),
-                    shape = RoundedCornerShape(12.dp),
+                        .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp))
+                        .clickable { onSelectApp(app.name, app.duration) },
+                    shape = RoundedCornerShape(14.dp),
                     color = Color(0xFF0F172A).copy(alpha = 0.75f)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF8B5CF6).copy(alpha = 0.2f)),
+                                    .background(app.iconColor.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Android,
+                                    imageVector = Icons.Default.PlayArrow,
                                     contentDescription = null,
-                                    tint = Color(0xFF8B5CF6),
-                                    modifier = Modifier.size(18.dp)
+                                    tint = app.iconColor,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(14.dp))
 
                             Text(
                                 text = app.name,
                                 color = Color.White,
-                                fontSize = 14.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
-                        Text(
-                            text = "${app.duration} (${app.percentage}%)",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = app.duration,
+                                color = Color(0xFF94A3B8),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = Color(0xFF475569),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -52,9 +52,12 @@ import com.systemmonitor.applock.manager.AppLockManager
 import com.systemmonitor.features.dashboard.DashboardViewModel
 import kotlinx.coroutines.launch
 
+import androidx.compose.material.icons.filled.Settings
+
 @Composable
 fun SelectAppsScreen(
     onBackClick: () -> Unit,
+    onNavigateToChooseMethod: () -> Unit = {},
     appLockManager: AppLockManager,
     dashboardViewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -94,29 +97,40 @@ fun SelectAppsScreen(
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Column {
+                        Text(
+                            text = "App Lock",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${lockedAppsList.size} apps protected",
+                            color = Color(0xFF00E676),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Column {
-                    Text(
-                        text = "App Lock - Select Applications",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${lockedAppsList.size} apps currently protected",
-                        color = Color(0xFF00E676),
-                        fontSize = 12.sp
+                IconButton(onClick = onNavigateToChooseMethod) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Choose Lock Method",
+                        tint = Color(0xFF00E5FF)
                     )
                 }
             }

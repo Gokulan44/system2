@@ -26,6 +26,43 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Create google-services.json if missing or empty
+        run: |
+          if [ ! -s app/google-services.json ]; then
+            echo "Creating valid template google-services.json..."
+            cat <<'EOF' > app/google-services.json
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "systemmonitor-app",
+              "storage_bucket": "systemmonitor-app.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+                  "android_client_info": {
+                    "package_name": "com.systemmonitor"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyApiKeyForSystemMonitorBuild"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+
       - name: Make Gradle executable
         run: chmod +x gradlew
 

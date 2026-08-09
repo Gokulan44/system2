@@ -82,7 +82,6 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    var selectedNavIndex by remember { mutableStateOf(0) }
 
     val bgGradient = Brush.verticalGradient(
         colors = listOf(
@@ -92,21 +91,11 @@ fun DashboardScreen(
         )
     )
 
-    Scaffold(
-        bottomBar = {
-            DashboardBottomNavigation(
-                selectedIndex = selectedNavIndex,
-                onItemSelected = { selectedNavIndex = it }
-            )
-        },
-        containerColor = Color.Transparent
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(bgGradient)
-                .padding(innerPadding)
-        ) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bgGradient)
+    ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -147,7 +136,6 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
-    }
 }
 
 @Composable
@@ -925,59 +913,4 @@ private fun QuickAccessItem(
     }
 }
 
-@Composable
-private fun DashboardBottomNavigation(
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit
-) {
-    NavigationBar(
-        containerColor = Color(0xFF0A0F1D),
-        contentColor = Color.White
-    ) {
-        val items = listOf(
-            Triple("Home", Icons.Default.Home, 0),
-            Triple("Security", Icons.Default.Security, 1),
-            Triple("Monitor", Icons.Default.Monitor, 2),
-            Triple("Files", Icons.Default.Folder, 3),
-            Triple("Profile", Icons.Default.Person, 4)
-        )
 
-        items.forEach { (label, icon, index) ->
-            val selected = selectedIndex == index
-            NavigationBarItem(
-                selected = selected,
-                onClick = { onItemSelected(index) },
-                icon = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (selected) {
-                            Box(
-                                modifier = Modifier
-                                    .width(20.dp)
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(Color(0xFF00E5FF))
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = label,
-                            tint = if (selected) Color(0xFF00E5FF) else Color(0xFF64748B)
-                        )
-                    }
-                },
-                label = {
-                    Text(
-                        text = label,
-                        color = if (selected) Color(0xFF00E5FF) else Color(0xFF64748B),
-                        fontSize = 11.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color.Transparent
-                )
-            )
-        }
-    }
-}
