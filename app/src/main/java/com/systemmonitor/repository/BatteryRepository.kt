@@ -5,6 +5,7 @@ import com.systemmonitor.domain.mapper.toEntity
 import com.systemmonitor.domain.model.Battery
 import com.systemmonitor.local.database.dao.BatteryDao
 import com.systemmonitor.monitoring.BatteryMonitor
+import com.systemmonitor.features.settings.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -13,7 +14,8 @@ import javax.inject.Singleton
 @Singleton
 class BatteryRepository @Inject constructor(
     private val batteryDao: BatteryDao,
-    private val batteryMonitor: BatteryMonitor
+    private val batteryMonitor: BatteryMonitor,
+    private val settingsRepository: SettingsRepository
 ) {
 
     /** Live UI stream — last persisted reading. */
@@ -22,6 +24,10 @@ class BatteryRepository @Inject constructor(
 
     /** Reads fresh state from the OS and persists it. Called by the worker and pull-to-refresh. */
     suspend fun captureAndStore(): Battery? {
+        val settings = settingsRepository.settingsFlow.value.power
+        if (!settings.batteryMonitoringEnabled) {
+            return null
+        }
         val reading = batteryMonitor.readCurrent() ?: return null
         batteryDao.insert(reading.toEntity())
         return reading

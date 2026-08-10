@@ -39,6 +39,7 @@ import com.systemmonitor.features.auth.LoginScreen
 import com.systemmonitor.features.auth.RegisterScreen
 import com.systemmonitor.features.dashboard.DashboardScreen
 import com.systemmonitor.features.device.DeviceCenterScreen
+import com.systemmonitor.features.device.DeviceInfoScreen
 import com.systemmonitor.features.devices.DeviceListScreen
 import com.systemmonitor.features.devices.PairLaptopScreen
 import com.systemmonitor.features.devices.AddLaptopScreen
@@ -112,14 +113,16 @@ fun MainScreenContainer(
 ) {
     var currentDestination by remember { mutableStateOf<NavDestination>(NavDestination.Home) }
     var lastScanResult by remember { mutableStateOf<SecurityScan?>(null) }
+    var selectedThreat by remember { mutableStateOf<com.systemmonitor.features.security.domain.model.ThreatInfo?>(null) }
 
     var userName by remember { mutableStateOf("Admin") }
     var userEmail by remember { mutableStateOf("admin@systemmonitor.com") }
     var userPhone by remember { mutableStateOf("+1 234 567 890") }
     var userCountry by remember { mutableStateOf("United States") }
 
-    var selectedAppName by remember { mutableStateOf("YouTube") }
-    var selectedAppDuration by remember { mutableStateOf("1h 20m") }
+    var selectedAppName by remember { mutableStateOf("") }
+    var selectedAppDuration by remember { mutableStateOf("") }
+    var selectedPackageName by remember { mutableStateOf("") }
 
     var selectedLockMethod by remember { mutableStateOf("PIN") }
 
@@ -172,7 +175,14 @@ fun MainScreenContainer(
                 is NavDestination.Home -> DashboardScreen(
                     onNavigateTo = { destination -> currentDestination = destination }
                 )
-                is NavDestination.DeviceCenter -> DeviceListScreen(
+                is NavDestination.DeviceCenter -> DeviceCenterScreen(
+                    onNavigateToInfo = { currentDestination = NavDestination.DeviceInfo },
+                    onBackClick = { currentDestination = NavDestination.Home }
+                )
+                is NavDestination.DeviceInfo -> DeviceInfoScreen(
+                    onBackClick = { currentDestination = NavDestination.DeviceCenter }
+                )
+                is NavDestination.Laptops -> DeviceListScreen(
                     laptopViewModel = laptopViewModel,
                     onAddDeviceClick = { currentDestination = NavDestination.AddLaptop },
                     onSelectLaptop = { laptop ->
@@ -219,33 +229,41 @@ fun MainScreenContainer(
                 is NavDestination.Processes -> ProcessesScreen(
                     onBackClick = { currentDestination = NavDestination.LaptopDetails }
                 )
-                is NavDestination.SecurityCenter -> {
-                    if (lastScanResult != null) {
-                        ScanResultScreen(
-                            scanResult = lastScanResult!!,
-                            onViewThreatDetails = { currentDestination = NavDestination.ResolveActions },
-                            onBackToDashboard = { currentDestination = NavDestination.SecurityReport }
-                        )
-                    } else {
-                        SecurityDashboardScreen(
-                            onStartScan = { currentDestination = NavDestination.SecurityScanProgress },
-                            onNavigateToHistory = { currentDestination = NavDestination.ScanHistory },
-                            onBackClick = { currentDestination = NavDestination.Home }
-                        )
-                    }
-                }
+                is NavDestination.SecurityCenter -> SecurityDashboardScreen(
+                    onStartScan = { currentDestination = NavDestination.SecurityScanProgress },
+                    onNavigateToHistory = { currentDestination = NavDestination.ScanHistory },
+                    onBackClick = { currentDestination = NavDestination.Home }
+                )
                 is NavDestination.SecurityScanProgress -> SecurityScanScreen(
                     onScanComplete = { result ->
                         lastScanResult = result
-                        currentDestination = NavDestination.SecurityCenter
+                        currentDestination = NavDestination.ScanResult
                     },
                     onCancelClick = { currentDestination = NavDestination.SecurityCenter }
                 )
+                is NavDestination.ScanResult -> {
+                    val scan = lastScanResult
+                    if (scan != null) {
+                        ScanResultScreen(
+                            scanResult = scan,
+                            onViewThreatDetails = { threat ->
+                                selectedThreat = threat
+                                currentDestination = NavDestination.ResolveActions
+                            },
+                            onBackToDashboard = {
+                                currentDestination = NavDestination.SecurityCenter
+                            }
+                        )
+                    } else {
+                        // Fallback: no scan data, go to dashboard
+                        currentDestination = NavDestination.SecurityCenter
+                    }
+                }
                 is NavDestination.ScanHistory -> ScanHistoryScreen(
                     onBackClick = { currentDestination = NavDestination.SecurityCenter }
                 )
                 is NavDestination.ResolveActions -> {
-                    val threat = lastScanResult?.threats?.firstOrNull() ?: com.systemmonitor.features.security.domain.model.ThreatInfo(
+                    val threat = selectedThreat ?: com.systemmonitor.features.security.domain.model.ThreatInfo(
                         id = "default_threat",
                         title = "Suspicious Application Detected",
                         description = "Application matches untrusted signatures",
@@ -256,7 +274,7 @@ fun MainScreenContainer(
                     ResolveActionsScreen(
                         threat = threat,
                         onResolveAction = { currentDestination = NavDestination.SecurityReport },
-                        onBackClick = { currentDestination = NavDestination.SecurityCenter }
+                        onBackClick = { currentDestination = NavDestination.ScanResult }
                     )
                 }
                 is NavDestination.SecurityReport -> {
@@ -265,6 +283,7 @@ fun MainScreenContainer(
                         scanResult = scan,
                         onBackToDashboard = {
                             lastScanResult = null
+                            selectedThreat = null
                             currentDestination = NavDestination.SecurityCenter
                         }
                     )
@@ -313,7 +332,8 @@ fun MainScreenContainer(
                 )
                 is NavDestination.AppUsage -> AppUsageScreen(
                     appUsageViewModel = appUsageViewModel,
-                    onSelectApp = { name, duration ->
+                    onSelectApp = { pkgName, name, duration ->
+                        selectedPackageName = pkgName
                         selectedAppName = name
                         selectedAppDuration = duration
                         currentDestination = NavDestination.UsageDetails
@@ -322,10 +342,13 @@ fun MainScreenContainer(
                 is NavDestination.UsageDetails -> UsageDetailsScreen(
                     appName = selectedAppName,
                     usageTime = selectedAppDuration,
+                    packageName = selectedPackageName,
+                    appUsageViewModel = appUsageViewModel,
                     onNavigateToAnalytics = { currentDestination = NavDestination.UsageAnalytics },
                     onBackClick = { currentDestination = NavDestination.AppUsage }
                 )
                 is NavDestination.UsageAnalytics -> UsageAnalyticsScreen(
+                    appUsageViewModel = appUsageViewModel,
                     onBackClick = { currentDestination = NavDestination.UsageDetails }
                 )
                 is NavDestination.DigitalWellbeing -> DigitalWellbeingScreen()

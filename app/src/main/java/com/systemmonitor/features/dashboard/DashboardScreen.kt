@@ -83,13 +83,23 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    val bgGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF080C16),
-            Color(0xFF0B132B),
-            Color(0xFF070B18)
+    val isAmoled = com.systemmonitor.LocalDarkMode.current
+    val bgGradient = if (isAmoled) {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF000000),
+                Color(0xFF000000)
+            )
         )
-    )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF080C16),
+                Color(0xFF0B132B),
+                Color(0xFF070B18)
+            )
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -118,7 +128,11 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // 4. Real-time Monitoring Section (DeviceStatusCard)
-                DeviceStatusCard(onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.DeviceCenter) })
+                DeviceStatusCard(
+                    cpuPercent = state.cpuPercent,
+                    ramPercent = state.ramPercent,
+                    onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.DeviceCenter) }
+                )
 
                 Spacer(modifier = Modifier.height(18.dp))
 
@@ -337,7 +351,7 @@ private fun GridMetricsSection(
                 iconBg = Color(0xFF8B5CF6).copy(alpha = 0.2f),
                 iconColor = Color(0xFF8B5CF6),
                 title = "Apps Checked",
-                value = String.format("%,d", if (state.appsCheckedCount > 0) state.appsCheckedCount else 1248),
+                value = if (state.isLoading) "..." else "${state.appsCheckedCount}",
                 modifier = Modifier.weight(1f).clickable { onNavigateTo(com.systemmonitor.navigation.NavDestination.SecurityCenter) }
             )
             MetricCard(

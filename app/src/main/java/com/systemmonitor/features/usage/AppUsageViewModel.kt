@@ -1,6 +1,7 @@
 package com.systemmonitor.features.usage
 
 import android.app.AppOpsManager
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.os.Build
@@ -18,14 +19,87 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import javax.inject.Inject
+import kotlin.math.roundToInt
+
+// ────────────────────────────────────────────────
+// Data classes
+// ────────────────────────────────────────────────
+
+data class AppUsageItem(
+    val packageName: String,        // NEW – needed for detail screen lookup
+    val name: String,
+    val duration: String,
+    val durationMs: Long,           // raw ms – used for correct % calc
+    val percentage: Int,
+    val iconColor: Color
+)
+
+data class DailyUsage(
+    val dayLabel: String,           // "Mon", "Tue", etc.
+    val durationMs: Long,
+    val ratio: Float                // 0f-1f relative to the busiest day this week
+)
+
+data class AppDetailStats(
+    val weeklyBreakdown: List<DailyUsage>,
+    val foregroundMs: Long,
+    val sessionsEstimate: Int       // estimated launches from UsageEvents
+)
+
+data class AnalyticsData(
+    val weeklyTotalMs: Long,
+    val monthlyTotalMs: Long,
+    val weeklyPercentOfDay: Int,    // % of 16h waking day
+    val categoryBreakdown: List<CategoryUsage>
+)
+
+data class CategoryUsage(
+    val name: String,
+    val percentage: Int,
+    val color: Color
+)
 
 data class AppUsageState(
     val hasPermission: Boolean = false,
     val totalScreenTimeText: String = "0h 00m",
     val usagePercentage: Int = 0,
     val appsUsageList: List<AppUsageItem> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    // Detail screen data
+    val detailStats: AppDetailStats? = null,
+    val isLoadingDetail: Boolean = false,
+    // Analytics screen data
+    val analyticsData: AnalyticsData? = null,
+    val isLoadingAnalytics: Boolean = false
 )
+
+// ────────────────────────────────────────────────
+// Known package prefixes for category classification
+// ────────────────────────────────────────────────
+
+private val SOCIAL_PKGS = setOf(
+    "com.instagram", "com.facebook", "com.twitter", "com.snapchat",
+    "com.whatsapp", "com.linkedin", "com.pinterest", "com.reddit",
+    "com.tiktok", "com.discord", "org.telegram", "com.viber",
+    "com.tumblr", "com.skype"
+)
+private val ENTERTAINMENT_PKGS = setOf(
+    "com.google.android.youtube", "com.netflix", "tv.twitch",
+    "com.spotify", "com.amazon.avod", "com.disney", "com.hulu",
+    "com.plexapp", "com.valvesoftware", "com.ea", "com.supercell",
+    "com.king", "com.rovio", "com.niantic", "com.gameloft"
+)
+private val PRODUCTIVITY_PKGS = setOf(
+    "com.google.android.gm", "com.microsoft", "com.slack",
+    "com.notion", "com.evernote", "com.todoist", "com.trello",
+    "com.google.android.calendar", "com.adobe", "com.google.android.docs",
+    "com.google.android.sheets", "com.dropbox", "com.box",
+    "com.zoom", "us.zoom", "com.teams"
+)
+
+// ────────────────────────────────────────────────
+// ViewModel
+// ────────────────────────────────────────────────
 
 @HiltViewModel
 class AppUsageViewModel @Inject constructor(
@@ -35,18 +109,40 @@ class AppUsageViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AppUsageState())
     val uiState: StateFlow<AppUsageState> = _uiState.asStateFlow()
 
+    // ── Permission ──────────────────────────────
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
+            ?: return false
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                context.packageName
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                context.packageName
+            )
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    // ── Main list load ───────────────────────────
+
     fun loadUsageStats(tabIndex: Int) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val hasPerm = checkUsageStatsPermission()
-            if (!hasPerm) {
+
+            if (!hasUsageStatsPermission()) {
                 _uiState.update { it.copy(hasPermission = false, isLoading = false, appsUsageList = emptyList()) }
                 return@launch
             }
 
-            val stats = withContext(Dispatchers.IO) {
-                fetchRealUsage(tabIndex)
-            }
+            val stats = withContext(Dispatchers.IO) { fetchRealUsage(tabIndex) }
             _uiState.update {
                 it.copy(
                     hasPermission = true,
@@ -56,53 +152,74 @@ class AppUsageViewModel @Inject constructor(
                     isLoading = false
                 )
             }
+
+            // Also refresh analytics whenever main list reloads
+            withContext(Dispatchers.IO) { loadAnalyticsInternal() }
         }
     }
 
-    private fun checkUsageStatsPermission(): Boolean {
-        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), context.packageName)
-        } else {
-            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), context.packageName)
+    // ── Detail screen weekly breakdown ──────────
+
+    fun loadWeeklyBreakdown(packageName: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingDetail = true, detailStats = null) }
+            val stats = withContext(Dispatchers.IO) { fetchWeeklyBreakdown(packageName) }
+            _uiState.update { it.copy(detailStats = stats, isLoadingDetail = false) }
         }
-        return mode == AppOpsManager.MODE_ALLOWED
     }
+
+    // ── Analytics ───────────────────────────────
+
+    fun loadAnalytics() {
+        viewModelScope.launch {
+            if (!hasUsageStatsPermission()) return@launch
+            _uiState.update { it.copy(isLoadingAnalytics = true) }
+            withContext(Dispatchers.IO) { loadAnalyticsInternal() }
+        }
+    }
+
+    // ────────────────────────────────────────────
+    // Private implementation
+    // ────────────────────────────────────────────
+
+    private inner class FetchedStats(
+        val totalTimeText: String,
+        val percentage: Int,
+        val items: List<AppUsageItem>
+    )
 
     private fun fetchRealUsage(tabIndex: Int): FetchedStats {
-        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
-            ?: return FetchedStats("0h 00m", 0, emptyList())
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return FetchedStats("0m", 0, emptyList())
 
         val calendar = Calendar.getInstance()
         val endTime = calendar.timeInMillis
-        val startTime = when (tabIndex) {
+
+        // Pick start time AND interval based on tab
+        val (startTime, interval) = when (tabIndex) {
             0 -> { // Today (since midnight)
                 calendar.set(Calendar.HOUR_OF_DAY, 0)
                 calendar.set(Calendar.MINUTE, 0)
                 calendar.set(Calendar.SECOND, 0)
-                calendar.timeInMillis
+                calendar.timeInMillis to UsageStatsManager.INTERVAL_DAILY
             }
-            1 -> { // Last 24 Hours
+            1 -> { // Last 24 hours
                 calendar.add(Calendar.DAY_OF_YEAR, -1)
-                calendar.timeInMillis
+                calendar.timeInMillis to UsageStatsManager.INTERVAL_DAILY
             }
-            2 -> { // Last 7 Days
+            2 -> { // Last 7 days — use WEEKLY interval for better OS aggregation
                 calendar.add(Calendar.DAY_OF_YEAR, -7)
-                calendar.timeInMillis
+                calendar.timeInMillis to UsageStatsManager.INTERVAL_WEEKLY
             }
-            else -> { // Last 30 Days
+            else -> { // Last 30 days
                 calendar.add(Calendar.DAY_OF_YEAR, -30)
-                calendar.timeInMillis
+                calendar.timeInMillis to UsageStatsManager.INTERVAL_MONTHLY
             }
         }
 
-        val usageStatsList = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            startTime,
-            endTime
-        ) ?: emptyList()
+        val usageStatsList = usm.queryUsageStats(interval, startTime, endTime) ?: emptyList()
 
-        // Aggregate by package
+        // Aggregate foreground time by package
         val packageMap = mutableMapOf<String, Long>()
         for (stat in usageStatsList) {
             val time = stat.totalTimeInForeground
@@ -112,70 +229,228 @@ class AppUsageViewModel @Inject constructor(
         }
 
         val pm = context.packageManager
-        val list = mutableListOf<AppUsageItem>()
-        var grandTotalMs = 0L
-
-        // Generate nice colors sequentially
         val colorPalette = listOf(
-            Color(0xFFEF4444), // Red
-            Color(0xFFEC4899), // Pink
-            Color(0xFF3B82F6), // Blue
-            Color(0xFF10B981), // Green
-            Color(0xFFF59E0B), // Orange
-            Color(0xFF8B5CF6)  // Purple
+            Color(0xFFEF4444), Color(0xFFEC4899), Color(0xFF3B82F6),
+            Color(0xFF10B981), Color(0xFFF59E0B), Color(0xFF8B5CF6),
+            Color(0xFF06B6D4), Color(0xFFF97316), Color(0xFF84CC16)
         )
         var colorIdx = 0
+        var grandTotalMs = 0L
 
+        val list = mutableListOf<AppUsageItem>()
+
+        // Sort by time descending; keep package association for correct % calc
         for ((pkg, timeMs) in packageMap.entries.sortedByDescending { it.value }) {
-            // Filter system launcher, settings, system UI, system monitor itself
-            if (pkg == context.packageName || pkg == "com.android.launcher3" || pkg == "com.android.settings" || pkg == "com.android.systemui") {
-                continue
-            }
+            if (shouldSkip(pkg)) continue
+            if (timeMs < 5_000L) continue  // skip < 5 seconds noise
 
-            val appLabel = try {
+            val appLabel = runCatching {
                 val info = pm.getApplicationInfo(pkg, 0)
                 pm.getApplicationLabel(info).toString()
-            } catch (e: Exception) {
-                pkg.substringAfterLast('.')
-            }
+            }.getOrDefault(pkg.substringAfterLast('.'))
 
-            // Exclude apps with less than 5 seconds to reduce noise
-            if (timeMs < 5000) continue
-
-            val hours = timeMs / 3600000
-            val minutes = (timeMs % 3600000) / 60000
-            val durationText = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+            grandTotalMs += timeMs
 
             list.add(
                 AppUsageItem(
+                    packageName = pkg,
                     name = appLabel,
-                    duration = durationText,
-                    percentage = 0, // calculated later
+                    duration = formatDuration(timeMs),
+                    durationMs = timeMs,
+                    percentage = 0,      // calculated after grand total is known
                     iconColor = colorPalette[colorIdx % colorPalette.size]
                 )
             )
-            grandTotalMs += timeMs
             colorIdx++
         }
 
-        // Calculate actual percentages relative to total screen time
-        val updatedList = list.mapIndexed { idx, item ->
-            val pkgTime = packageMap.values.sortedByDescending { it }.getOrNull(idx) ?: 0L
-            val pct = if (grandTotalMs > 0) ((pkgTime.toFloat() / grandTotalMs.toFloat()) * 100).toInt() else 0
+        // ✅ Fixed: compute percentage using the stored durationMs, not index lookup
+        val finalList = list.map { item ->
+            val pct = if (grandTotalMs > 0)
+                ((item.durationMs.toFloat() / grandTotalMs.toFloat()) * 100).roundToInt()
+            else 0
             item.copy(percentage = pct.coerceIn(1, 100))
         }
 
-        val totalHours = grandTotalMs / 3600000
-        val totalMinutes = (grandTotalMs % 3600000) / 60000
-        val totalText = if (totalHours > 0) "${totalHours}h ${totalMinutes}m" else "${totalMinutes}m"
-        val totalPct = if (grandTotalMs > 0) 78 else 0 // default visual target matching screen mockup
+        // ✅ Fixed: real % of 16h waking day (not hardcoded 78)
+        val wakingDayMs = 16L * 3600_000L
+        val totalPct = if (grandTotalMs > 0)
+            ((grandTotalMs.toFloat() / wakingDayMs) * 100).roundToInt().coerceIn(0, 100)
+        else 0
 
-        return FetchedStats(totalText, totalPct, updatedList)
+        return FetchedStats(
+            totalTimeText = formatDuration(grandTotalMs),
+            percentage = totalPct,
+            items = finalList
+        )
     }
 
-    private data class FetchedStats(
-        val totalTimeText: String,
-        val percentage: Int,
-        val items: List<AppUsageItem>
-    )
+    private fun fetchWeeklyBreakdown(packageName: String): AppDetailStats {
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return AppDetailStats(emptyList(), 0L, 0)
+
+        // Build 7 daily buckets: day -6 → today
+        val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        val dailyMs = LongArray(7)
+        var totalForegroundMs = 0L
+        var sessionCount = 0
+
+        val cal = Calendar.getInstance()
+        // End of today
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        val endOfToday = cal.timeInMillis
+
+        // Start of 7 days ago
+        cal.add(Calendar.DAY_OF_YEAR, -6)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        val startOf7DaysAgo = cal.timeInMillis
+
+
+        // Fallback: use queryUsageStats per-day for the 7-day breakdown
+        for (dayOffset in 0..6) {
+            val dayStart = Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, -(6 - dayOffset))
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0)
+            }.timeInMillis
+            val dayEnd = Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, -(6 - dayOffset))
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
+            }.timeInMillis
+
+            val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, dayStart, dayEnd)
+                ?: emptyList()
+            val dayMs = stats.filter { it.packageName == packageName }
+                .sumOf { it.totalTimeInForeground }
+            dailyMs[dayOffset] = dayMs
+            totalForegroundMs += dayMs
+        }
+
+        // Compute labels aligned to actual day-of-week
+        val todayDow = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) // 1=Sun..7=Sat
+        val dayNames = arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        val orderedLabels = (0..6).map { offset ->
+            val dow = ((todayDow - 1 - (6 - offset) + 7) % 7)
+            dayNames[dow]
+        }
+
+        val maxMs = dailyMs.max().coerceAtLeast(1L)
+        val breakdown = (0..6).map { i ->
+            DailyUsage(
+                dayLabel = orderedLabels[i],
+                durationMs = dailyMs[i],
+                ratio = (dailyMs[i].toFloat() / maxMs.toFloat()).coerceIn(0.02f, 1f)
+            )
+        }
+
+        // Estimate sessions: count foreground starts from UsageEvents
+        val eventsForSessions = usm.queryEvents(startOf7DaysAgo, endOfToday)
+        val evSession = UsageEvents.Event()
+        while (eventsForSessions.hasNextEvent()) {
+            eventsForSessions.getNextEvent(evSession)
+            if (evSession.packageName == packageName &&
+                evSession.eventType == UsageEvents.Event.ACTIVITY_RESUMED
+            ) {
+                sessionCount++
+            }
+        }
+
+        return AppDetailStats(
+            weeklyBreakdown = breakdown,
+            foregroundMs = totalForegroundMs,
+            sessionsEstimate = sessionCount
+        )
+    }
+
+    private fun loadAnalyticsInternal() {
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+        if (usm == null) {
+            _uiState.update { it.copy(isLoadingAnalytics = false) }
+            return
+        }
+
+        // Weekly total
+        val cal = Calendar.getInstance()
+        val now = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, -7)
+        val weekStart = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, -23) // -30 total from now
+        val monthStart = cal.timeInMillis
+
+        val weeklyStats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, weekStart, now) ?: emptyList()
+        val monthlyStats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, monthStart, now) ?: emptyList()
+
+        val weeklyMs = weeklyStats
+            .filter { !shouldSkip(it.packageName) && it.totalTimeInForeground > 5_000 }
+            .sumOf { it.totalTimeInForeground }
+
+        val monthlyMs = monthlyStats
+            .filter { !shouldSkip(it.packageName) && it.totalTimeInForeground > 5_000 }
+            .sumOf { it.totalTimeInForeground }
+
+        // Category breakdown from weekly data
+        val packageTimes = weeklyStats
+            .filter { !shouldSkip(it.packageName) && it.totalTimeInForeground > 5_000 }
+            .associate { it.packageName to it.totalTimeInForeground }
+
+        val socialMs = packageTimes.entries.filter { (pkg, _) -> SOCIAL_PKGS.any { pkg.startsWith(it) } }.sumOf { it.value }
+        val entertainMs = packageTimes.entries.filter { (pkg, _) -> ENTERTAINMENT_PKGS.any { pkg.startsWith(it) } }.sumOf { it.value }
+        val productMs = packageTimes.entries.filter { (pkg, _) -> PRODUCTIVITY_PKGS.any { pkg.startsWith(it) } }.sumOf { it.value }
+        val otherMs = weeklyMs - socialMs - entertainMs - productMs
+
+        fun pct(ms: Long) = if (weeklyMs > 0) ((ms.toFloat() / weeklyMs) * 100).roundToInt() else 0
+
+        val categories = buildList {
+            if (socialMs > 0) add(CategoryUsage("Social Media", pct(socialMs), Color(0xFF3B82F6)))
+            if (entertainMs > 0) add(CategoryUsage("Entertainment", pct(entertainMs), Color(0xFFEF4444)))
+            if (productMs > 0) add(CategoryUsage("Productivity", pct(productMs), Color(0xFFF59E0B)))
+            val otherPct = pct(otherMs.coerceAtLeast(0L))
+            if (otherPct > 0) add(CategoryUsage("Others", otherPct, Color(0xFF10B981)))
+        }.let { list ->
+            // If all 0 (no categorizable apps), show one "Apps" entry at 100%
+            if (list.isEmpty()) listOf(CategoryUsage("Apps", 100, Color(0xFF6366F1)))
+            else list
+        }
+
+        val wakingWeekMs = 7L * 16L * 3600_000L
+        val weeklyPct = ((weeklyMs.toFloat() / wakingWeekMs) * 100).roundToInt().coerceIn(0, 100)
+
+        _uiState.update {
+            it.copy(
+                analyticsData = AnalyticsData(
+                    weeklyTotalMs = weeklyMs,
+                    monthlyTotalMs = monthlyMs,
+                    weeklyPercentOfDay = weeklyPct,
+                    categoryBreakdown = categories
+                ),
+                isLoadingAnalytics = false
+            )
+        }
+    }
+
+    // ── Helpers ─────────────────────────────────
+
+    private fun shouldSkip(pkg: String): Boolean =
+        pkg == context.packageName ||
+        pkg.startsWith("com.android.") ||
+        pkg.startsWith("com.google.android.inputmethod") ||
+        pkg == "android" ||
+        pkg == "com.android.launcher3" ||
+        pkg == "com.android.settings" ||
+        pkg == "com.android.systemui" ||
+        pkg == "com.google.android.gms"
+
+    private fun formatDuration(ms: Long): String {
+        val hours = ms / 3_600_000L
+        val minutes = (ms % 3_600_000L) / 60_000L
+        val seconds = (ms % 60_000L) / 1_000L
+        return when {
+            hours > 0 -> "${hours}h ${minutes}m"
+            minutes > 0 -> "${minutes}m"
+            else -> "${seconds}s"
+        }
+    }
 }

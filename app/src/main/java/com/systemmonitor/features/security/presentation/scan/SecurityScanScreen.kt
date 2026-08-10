@@ -50,19 +50,42 @@ class SecurityScanViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
 
+    // Guard so init doesn't re-trigger if the composable is recomposed
+    private var scanStarted = false
+
     init {
         startScan()
     }
 
     fun startScan() {
+        // Idempotency guard — prevent duplicate concurrent scans
+        if (scanStarted) return
+        scanStarted = true
+
         viewModelScope.launch {
-            _uiState.update { it.copy(progress = 0, isScanning = true) }
-            securityScanner.executeFullScan().collect { (prog, text) ->
-                _uiState.update { it.copy(progress = prog, currentStepText = text) }
+            _uiState.update { it.copy(progress = 0, isScanning = true, completedScan = null) }
+
+            // Single-pass scan — progress AND threats collected in one Flow
+            securityScanner.executeFullScan().collect { scanProgress ->
+                _uiState.update {
+                    it.copy(
+                        progress = scanProgress.percent,
+                        currentStepText = scanProgress.stepText
+                    )
+                }
+
+                if (scanProgress.isFinished && scanProgress.finalScan != null) {
+                    val result = scanProgress.finalScan
+                    repository.saveScanResult(result)
+                    _uiState.update {
+                        it.copy(
+                            progress = 100,
+                            isScanning = false,
+                            completedScan = result
+                        )
+                    }
+                }
             }
-            val result = securityScanner.performComprehensiveScan()
-            repository.saveScanResult(result)
-            _uiState.update { it.copy(progress = 100, isScanning = false, completedScan = result) }
         }
     }
 }
@@ -120,7 +143,7 @@ fun SecurityScanScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Scan Step Items List utilizing ScanCategoryCard
+            // Scan Step Items List
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 scanSteps.forEachIndexed { index, step ->
                     val isDone = state.progress > ((index + 1) * 11)

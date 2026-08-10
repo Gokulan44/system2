@@ -33,9 +33,96 @@ fun ScreenSettingsScreen(viewModel: SettingsViewModel, onBackClick: () -> Unit) 
         SimpleToggleTile("Dark Theme (Amoled)", "Optimized dark theme for OLED screens", screen.darkModeEnabled) {
             viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(screen = screen.copy(darkModeEnabled = it))))
         }
-        Spacer(modifier = Modifier.height(10.dp))
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
         SimpleToggleTile("Auto Brightness Adjust", "Dynamically adjust screen brightness", screen.autoBrightnessEnabled) {
             viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(screen = screen.copy(autoBrightnessEnabled = it))))
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Surface(
+            modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp)),
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFF0F172A).copy(alpha = 0.85f)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Manual Screen Brightness", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("Adjust screen brightness percentage manually", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                    }
+                    Text("${screen.brightnessPercent}%", color = Color(0xFF00E5FF), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Slider(
+                    value = screen.brightnessPercent.toFloat(),
+                    enabled = !screen.autoBrightnessEnabled,
+                    onValueChange = {
+                        viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(screen = screen.copy(brightnessPercent = it.toInt()))))
+                    },
+                    valueRange = 10f..100f,
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = Color(0xFF00E5FF),
+                        inactiveTrackColor = Color(0xFF1E293B),
+                        thumbColor = Color.White
+                    )
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Surface(
+            modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp)),
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFF0F172A).copy(alpha = 0.85f)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Screen Timeout Duration", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("Turn off screen automatically after inactivity", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(15, 30, 60, 120, 300).forEach { seconds ->
+                        val isSelected = screen.screenTimeoutSeconds == seconds
+                        val label = when (seconds) {
+                            15 -> "15s"
+                            30 -> "30s"
+                            60 -> "1m"
+                            120 -> "2m"
+                            300 -> "5m"
+                            else -> "${seconds}s"
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Color(0xFF00E5FF).copy(alpha = 0.2f) else Color.Transparent)
+                                .border(1.dp, if (isSelected) Color(0xFF00E5FF) else Color(0xFF1E293B), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(screen = screen.copy(screenTimeoutSeconds = seconds))))
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) Color(0xFF00E5FF) else Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -184,7 +271,12 @@ private fun CategoryBaseScreen(
     onBackClick: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val bgGradient = Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
+    val isAmoled = com.systemmonitor.LocalDarkMode.current
+    val bgGradient = if (isAmoled) {
+        Brush.verticalGradient(colors = listOf(Color(0xFF000000), Color(0xFF000000)))
+    } else {
+        Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
+    }
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

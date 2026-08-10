@@ -2,18 +2,15 @@ package com.systemmonitor.features.usage
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,37 +20,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UsageDetailsScreen(
-    appName: String = "YouTube",
-    usageTime: String = "1h 20m",
+    appName: String = "App",
+    usageTime: String = "0m",
+    packageName: String = "",               // NEW – drives real data lookup
+    appUsageViewModel: AppUsageViewModel,   // NEW – provides real stats
     onNavigateToAnalytics: () -> Unit,
     onBackClick: () -> Unit
 ) {
-    val weekDays = listOf(
-        Pair("Mon", 0.4f),
-        Pair("Tue", 0.65f),
-        Pair("Wed", 0.9f),
-        Pair("Thu", 0.5f),
-        Pair("Fri", 0.85f),
-        Pair("Sat", 0.7f),
-        Pair("Sun", 0.45f)
-    )
+    val uiState by appUsageViewModel.uiState.collectAsState()
+
+    // Trigger real breakdown load when screen opens
+    LaunchedEffect(packageName) {
+        if (packageName.isNotBlank()) {
+            appUsageViewModel.loadWeeklyBreakdown(packageName)
+        }
+    }
 
     val bgGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF080C16),
-            Color(0xFF0B132B),
-            Color(0xFF070B18)
-        )
+        colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18))
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bgGradient)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -61,26 +50,12 @@ fun UsageDetailsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
-
                 Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = "Usage Details",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Usage Details", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -93,10 +68,7 @@ fun UsageDetailsScreen(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFF0F172A).copy(alpha = 0.85f)
             ) {
-                Row(
-                    modifier = Modifier.padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(56.dp)
@@ -111,29 +83,13 @@ fun UsageDetailsScreen(
                             modifier = Modifier.size(32.dp)
                         )
                     }
-
                     Spacer(modifier = Modifier.width(16.dp))
-
                     Column {
-                        Text(
-                            text = appName,
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(appName, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = usageTime,
-                                color = Color(0xFF00E5FF),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
+                            Text(usageTime, color = Color(0xFF00E5FF), fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Today",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 12.sp
-                            )
+                            Text("Today", color = Color(0xFF94A3B8), fontSize = 12.sp)
                         }
                     }
                 }
@@ -141,7 +97,7 @@ fun UsageDetailsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Usage Breakdown Bar Chart Card matching image
+            // ✅ Real 7-day Bar Chart
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -150,40 +106,74 @@ fun UsageDetailsScreen(
                 color = Color(0xFF0F172A).copy(alpha = 0.85f)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "Usage Breakdown",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("7-Day Usage Breakdown", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        if (uiState.isLoadingDetail) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFF3B82F6)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        weekDays.forEach { (day, ratio) ->
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Bottom
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(18.dp)
-                                        .height((110 * ratio).dp)
-                                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(Color(0xFFA855F7), Color(0xFF3B82F6))
-                                            )
+                    val breakdown = uiState.detailStats?.weeklyBreakdown
+                    if (breakdown.isNullOrEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(130.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                if (uiState.isLoadingDetail) "Loading..." else "No data for this period",
+                                color = Color(0xFF64748B),
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else {
+                        // Real bar chart
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(130.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            breakdown.forEach { day ->
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Bottom,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    // Duration label on top of bar
+                                    if (day.durationMs > 0) {
+                                        val mins = (day.durationMs / 60_000L).toInt()
+                                        val hrs = mins / 60
+                                        Text(
+                                            text = if (hrs > 0) "${hrs}h" else "${mins}m",
+                                            color = Color(0xFF94A3B8),
+                                            fontSize = 8.sp
                                         )
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(text = day, color = Color(0xFF94A3B8), fontSize = 10.sp)
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.6f)
+                                            .height((110 * day.ratio).dp)
+                                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                            .background(
+                                                if (day.durationMs > 0)
+                                                    Brush.verticalGradient(listOf(Color(0xFFA855F7), Color(0xFF3B82F6)))
+                                                else
+                                                    Brush.verticalGradient(listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(text = day.dayLabel, color = Color(0xFF94A3B8), fontSize = 10.sp)
+                                }
                             }
                         }
                     }
@@ -192,29 +182,33 @@ fun UsageDetailsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Metrics Summary Rows
-            DetailMetricRow("App Launches", "24")
+            // ✅ Real metrics
+            val detail = uiState.detailStats
+            val foregroundMs = detail?.foregroundMs ?: 0L
+            val sessions = detail?.sessionsEstimate ?: 0
+            val fgHours = foregroundMs / 3_600_000L
+            val fgMins = (foregroundMs % 3_600_000L) / 60_000L
+            val fgText = when {
+                foregroundMs == 0L -> "—"
+                fgHours > 0 -> "${fgHours}h ${fgMins}m"
+                else -> "${fgMins}m"
+            }
+
+            DetailMetricRow("App Sessions (7 days)", if (sessions > 0) "$sessions" else "—")
             Spacer(modifier = Modifier.height(10.dp))
-            DetailMetricRow("Background Usage", "12m")
+            DetailMetricRow("Foreground Usage (7 days)", fgText)
             Spacer(modifier = Modifier.height(10.dp))
-            DetailMetricRow("Foreground Usage", "1h 8m")
+            DetailMetricRow("Today's Usage", usageTime)
 
             Spacer(modifier = Modifier.height(28.dp))
 
             Button(
                 onClick = onNavigateToAnalytics,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text(
-                    text = "View Analytics",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
+                Text("View Full Analytics", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
     }
@@ -234,8 +228,8 @@ private fun DetailMetricRow(label: String, value: String) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, color = Color(0xFF94A3B8), fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            Text(text = value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = Color(0xFF94A3B8), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

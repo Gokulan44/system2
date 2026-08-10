@@ -59,7 +59,12 @@ fun SecurityDashboardScreen(
     val history by viewModel.history.collectAsState()
     val lastScan = history.firstOrNull()
 
-    val bgGradient = Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
+    val isAmoled = com.systemmonitor.LocalDarkMode.current
+    val bgGradient = if (isAmoled) {
+        Brush.verticalGradient(colors = listOf(Color(0xFF000000), Color(0xFF000000)))
+    } else {
+        Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
         Column(

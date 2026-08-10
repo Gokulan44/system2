@@ -16,26 +16,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.delay
 
 @Composable
 fun DeviceStatusCard(
+    cpuPercent: Int,
+    ramPercent: Int,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    memoryViewModel: MemoryViewModel = hiltViewModel()
+    modifier: Modifier = Modifier
 ) {
-    val memoryState by memoryViewModel.uiState.collectAsState()
-    var cpuUsage by remember { mutableStateOf(35) }
-
-    // Poll simulated/real CPU updates
-    LaunchedEffect(Unit) {
-        while (true) {
-            cpuUsage = (20..65).random()
-            delay(3000)
-        }
-    }
-
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -87,10 +75,10 @@ fun DeviceStatusCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("CPU Usage", color = Color(0xFF94A3B8), fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("$cpuUsage%", color = Color(0xFF00E5FF), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("$cpuPercent%", color = Color(0xFF00E5FF), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     LinearProgressIndicator(
-                        progress = { cpuUsage / 100f },
+                        progress = { cpuPercent / 100f },
                         modifier = Modifier.fillMaxWidth().height(4.dp),
                         color = Color(0xFF00E5FF),
                         trackColor = Color(0xFF1E293B)
@@ -101,19 +89,14 @@ fun DeviceStatusCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("RAM Usage", color = Color(0xFF94A3B8), fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    when (val mem = memoryState) {
-                        is MemoryUiState.Loading -> Text("Loading...", color = Color.White, fontSize = 13.sp)
-                        is MemoryUiState.Ready -> {
-                            Text("${mem.memory.usedPercent}%", color = Color(0xFF8B5CF6), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { mem.memory.usedPercent / 100f },
-                                modifier = Modifier.fillMaxWidth().height(4.dp),
-                                color = Color(0xFF8B5CF6),
-                                trackColor = Color(0xFF1E293B)
-                            )
-                        }
-                    }
+                    Text("$ramPercent%", color = Color(0xFF8B5CF6), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { ramPercent / 100f },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = Color(0xFF8B5CF6),
+                        trackColor = Color(0xFF1E293B)
+                    )
                 }
             }
         }

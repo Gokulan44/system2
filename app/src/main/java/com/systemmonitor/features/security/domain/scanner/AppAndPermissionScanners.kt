@@ -59,7 +59,9 @@ class PermissionScanner @Inject constructor(
 
         val installedPackages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS)
         for (pkg in installedPackages) {
-            val isSystem = pkg.applicationInfo != null && (pkg.applicationInfo!!.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+            // applicationInfo can be null on Android 13+ due to package visibility rules; skip safely
+            val appInfo = pkg.applicationInfo ?: continue
+            val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             if (!isSystem && pkg.requestedPermissions != null) {
                 var sensitiveCount = 0
                 for (perm in pkg.requestedPermissions) {
@@ -68,7 +70,8 @@ class PermissionScanner @Inject constructor(
                     }
                 }
                 if (sensitiveCount >= 3) {
-                    val appLabel = pm.getApplicationLabel(pkg.applicationInfo!!).toString()
+                    val appLabel = runCatching { pm.getApplicationLabel(appInfo).toString() }
+                        .getOrDefault(pkg.packageName)
                     threats.add(
                         ThreatInfo(
                             id = "perm_${pkg.packageName}",

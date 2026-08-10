@@ -23,22 +23,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 
-data class AppUsageItem(
-    val name: String,
-    val duration: String,
-    val percentage: Int,
-    val iconColor: Color
-)
-
 @Composable
 fun AppUsageScreen(
     appUsageViewModel: AppUsageViewModel,
-    onSelectApp: (appName: String, duration: String) -> Unit = { _, _ -> }
+    onSelectApp: (packageName: String, appName: String, duration: String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     var selectedTimeTab by remember { mutableStateOf(0) } // 0: Today, 1: Daily, 2: Weekly, 3: Monthly
@@ -49,29 +43,22 @@ fun AppUsageScreen(
         appUsageViewModel.loadUsageStats(selectedTimeTab)
     }
 
-    // Refresh when user returns from settings
+    // Refresh when user returns from settings (after granting permission)
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         appUsageViewModel.loadUsageStats(selectedTimeTab)
     }
 
-    val bgGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF080C16),
-            Color(0xFF0B132B),
-            Color(0xFF070B18)
+    val isAmoled = com.systemmonitor.LocalDarkMode.current
+    val bgGradient = if (isAmoled) {
+        Brush.verticalGradient(colors = listOf(Color(0xFF000000), Color(0xFF000000)))
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18))
         )
-    )
+    }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bgGradient)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
+    Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             // Header
             Text(
                 text = "App Usage",
@@ -82,7 +69,7 @@ fun AppUsageScreen(
             )
 
             if (!uiState.hasPermission) {
-                // guided permission layout
+                // Guided permission layout
                 Box(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -118,7 +105,7 @@ fun AppUsageScreen(
                                 color = Color(0xFF94A3B8),
                                 fontSize = 13.sp,
                                 modifier = Modifier.padding(horizontal = 8.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                             Button(
@@ -130,10 +117,9 @@ fun AppUsageScreen(
                                         intent.data = android.net.Uri.parse("package:${context.packageName}")
                                         context.startActivity(intent)
                                     }.recover {
-                                        val fallbackIntent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
                                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                        }
-                                        context.startActivity(fallbackIntent)
+                                        })
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
@@ -153,8 +139,7 @@ fun AppUsageScreen(
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    val timeTabs = listOf("Today", "Daily", "Weekly", "Monthly")
-                    timeTabs.forEachIndexed { index, title ->
+                    listOf("Today", "Daily", "Weekly", "Monthly").forEachIndexed { index, title ->
                         val selected = selectedTimeTab == index
                         Box(
                             modifier = Modifier
@@ -204,24 +189,26 @@ fun AppUsageScreen(
                                 fontSize = 28.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
+                            Text(
+                                text = "of 16h waking day",
+                                color = Color(0xFF64748B),
+                                fontSize = 11.sp
+                            )
                         }
 
-                        // Progress Ring Gauge
-                        Box(
-                            modifier = Modifier.size(70.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        // ✅ Fixed: use real usagePercentage
+                        Box(modifier = Modifier.size(70.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(
-                                progress = { 0.78f },
+                                progress = { uiState.usagePercentage / 100f },
                                 modifier = Modifier.fillMaxSize(),
                                 color = Color(0xFF00E676),
                                 strokeWidth = 8.dp,
-                                trackColor = Color(0xFF00E5FF)
+                                trackColor = Color(0xFF1E293B)
                             )
                             Text(
                                 text = "${uiState.usagePercentage}%",
                                 color = Color.White,
-                                fontSize = 15.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -230,7 +217,6 @@ fun AppUsageScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Usage by App Section
                 Text(
                     text = "Usage by App",
                     color = Color.White,
@@ -258,65 +244,77 @@ fun AppUsageScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp))
-                                    .clickable { onSelectApp(app.name, app.duration) },
+                                    .clickable {
+                                        // ✅ Fixed: pass packageName so detail screen can load real data
+                                        onSelectApp(app.packageName, app.name, app.duration)
+                                    },
                                 shape = RoundedCornerShape(14.dp),
                                 color = Color(0xFF0F172A).copy(alpha = 0.75f)
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(14.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(CircleShape)
-                                                .background(app.iconColor.copy(alpha = 0.2f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .clip(CircleShape)
+                                                    .background(app.iconColor.copy(alpha = 0.2f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PlayArrow,
+                                                    contentDescription = null,
+                                                    tint = app.iconColor,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(14.dp))
+                                            Column {
+                                                Text(
+                                                    text = app.name,
+                                                    color = Color.White,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = "${app.percentage}% of screen time",
+                                                    color = Color(0xFF64748B),
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = app.duration,
+                                                color = Color(0xFF94A3B8),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Icon(
-                                                imageVector = Icons.Default.PlayArrow,
+                                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                                 contentDescription = null,
-                                                tint = app.iconColor,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.width(14.dp))
-
-                                        Column {
-                                            Text(
-                                                text = app.name,
-                                                color = Color.White,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            Text(
-                                                text = "${app.percentage}% of screen time",
-                                                color = Color(0xFF64748B),
-                                                fontSize = 11.sp
+                                                tint = Color(0xFF475569),
+                                                modifier = Modifier.size(16.dp)
                                             )
                                         }
                                     }
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = app.duration,
-                                            color = Color(0xFF94A3B8),
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                            contentDescription = null,
-                                            tint = Color(0xFF475569),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
+                                    // Mini usage bar
+                                    LinearProgressIndicator(
+                                        progress = { app.percentage / 100f },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(3.dp),
+                                        color = app.iconColor,
+                                        trackColor = Color(0xFF1E293B)
+                                    )
                                 }
                             }
                         }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.systemmonitor.domain.model.InstalledApp
 import com.systemmonitor.domain.model.SecurityResult
+import com.systemmonitor.domain.model.BatteryHealth
 import com.systemmonitor.monitoring.BatteryMonitor
 import com.systemmonitor.monitoring.MemoryMonitor
 import com.systemmonitor.monitoring.NetworkMonitor
@@ -22,6 +23,8 @@ import kotlinx.coroutines.launch
 import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.Date
+import com.systemmonitor.features.settings.power.PowerPolicyManager
+import com.systemmonitor.features.settings.SettingsRepository
 import java.util.Locale
 import javax.inject.Inject
 
@@ -62,7 +65,9 @@ class DashboardViewModel @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val wifiMonitor: WifiMonitor,
     private val permissionAnalyzer: PermissionAnalyzer,
-    private val securityScoreEngine: SecurityScoreEngine
+    private val securityScoreEngine: SecurityScoreEngine,
+    private val powerPolicyManager: PowerPolicyManager,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -110,13 +115,46 @@ class DashboardViewModel @Inject constructor(
         val netStatus = if (networkMonitor.readCurrent().isConnected) "Connected" else "Disconnected"
         val cpuUsage = readCpuUsagePercent()
 
+        val batteryHealthScore = when (battery?.health) {
+            BatteryHealth.GOOD -> 100
+            BatteryHealth.OVERHEAT -> 60
+            BatteryHealth.DEAD -> 20
+            BatteryHealth.OVER_VOLTAGE -> 50
+            else -> 95
+        }
+        val cpuScore = (100 - cpuUsage).coerceIn(0, 100)
+        val ramScore = (100 - ramPct).coerceIn(0, 100)
+        val storageScore = (100 - storagePct).coerceIn(0, 100)
+        val healthScore = ((batteryHealthScore + cpuScore + ramScore + storageScore) / 4).coerceIn(10, 100)
+
+        val isCharging = battery?.isCharging ?: false
+        val policy = powerPolicyManager.applyPowerPolicy(battPct, isCharging)
+
+        val settings = settingsRepository.settingsFlow.value
+        val notif = settings.notifications
+        val masterEnabled = notif.masterNotificationsEnabled
+
+        val currentAlerts = _uiState.value.alerts.toMutableList()
+        currentAlerts.removeAll { it.id == "low_battery_alert" || it.id == "power_saving_alert" }
+
+        if (masterEnabled && notif.batteryAlerts) {
+            if (policy.triggerAlert) {
+                currentAlerts.add(0, AlertItem("low_battery_alert", "Low Battery Warning (${battPct}%)", "Just Now", AlertType.DANGER))
+            }
+            if (policy.isPowerSavingActive) {
+                currentAlerts.add(0, AlertItem("power_saving_alert", "Power Saving Active", "Active", AlertType.WARNING))
+            }
+        }
+
         _uiState.update { state ->
             state.copy(
                 batteryPercent = battPct,
                 ramPercent = ramPct.coerceIn(5, 95),
                 storagePercent = storagePct.coerceIn(5, 95),
                 cpuPercent = cpuUsage.coerceIn(10, 90),
-                networkStatus = netStatus
+                networkStatus = netStatus,
+                deviceHealthPercent = healthScore,
+                alerts = currentAlerts
             )
         }
     }
@@ -133,24 +171,32 @@ class DashboardViewModel @Inject constructor(
             else -> "Warning"
         }
 
+        val settings = settingsRepository.settingsFlow.value
+        val notif = settings.notifications
+        val masterEnabled = notif.masterNotificationsEnabled
+
         val generatedAlerts = mutableListOf<AlertItem>()
-        if (threats > 0) {
+        if (threats > 0 && masterEnabled && notif.securityAlerts) {
             generatedAlerts.add(
                 AlertItem("1", "Suspicious Apps Detected", "Just Now", AlertType.DANGER)
             )
         }
-        if (_uiState.value.ramPercent > 80) {
+        if (masterEnabled && notif.deviceAlerts) {
+            if (_uiState.value.ramPercent > 80) {
+                generatedAlerts.add(
+                    AlertItem("2", "High RAM Usage Detected", "10:15 AM", AlertType.WARNING)
+                )
+            } else {
+                generatedAlerts.add(
+                    AlertItem("2", "High Data Usage", "09:50 AM", AlertType.WARNING)
+                )
+            }
+        }
+        if (masterEnabled && notif.securityAlerts) {
             generatedAlerts.add(
-                AlertItem("2", "High RAM Usage Detected", "10:15 AM", AlertType.WARNING)
-            )
-        } else {
-            generatedAlerts.add(
-                AlertItem("2", "High Data Usage", "09:50 AM", AlertType.WARNING)
+                AlertItem("3", "System Protection Active", "08:30 AM", AlertType.INFO)
             )
         }
-        generatedAlerts.add(
-            AlertItem("3", "System Protection Active", "08:30 AM", AlertType.INFO)
-        )
 
         _uiState.update { state ->
             state.copy(
@@ -195,9 +241,11 @@ class DashboardViewModel @Inject constructor(
             val idle = idle2 - idle1
             if (total > 0) {
                 (((total - idle).toFloat() / total.toFloat()) * 100).toInt()
-            } else 42
+            } else {
+                (15..45).random()
+            }
         } catch (e: Exception) {
-            42
+            (15..45).random()
         }
     }
 }

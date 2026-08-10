@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Memory
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +51,8 @@ import com.systemmonitor.features.dashboard.DashboardViewModel
 
 @Composable
 fun DeviceCenterScreen(
+    onNavigateToInfo: () -> Unit,
+    onBackClick: () -> Unit,
     dashboardViewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by dashboardViewModel.uiState.collectAsState()
@@ -77,13 +81,22 @@ fun DeviceCenterScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Header
+            // Header with Back Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Device Center",
                         color = Color.White,
@@ -171,14 +184,32 @@ fun DeviceCenterScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 6 Quick Hardware Tiles
+            // 6 Quick Hardware Tiles (Navigates to Info screen)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                HardwareTile(icon = Icons.Default.PhoneAndroid, label = "Hardware", color = Color(0xFF3B82F6), modifier = Modifier.weight(1f))
-                HardwareTile(icon = Icons.Default.Speed, label = "CPU", color = Color(0xFF8B5CF6), modifier = Modifier.weight(1f))
-                HardwareTile(icon = Icons.Default.Memory, label = "Memory", color = Color(0xFFA855F7), modifier = Modifier.weight(1f))
+                HardwareTile(
+                    icon = Icons.Default.PhoneAndroid,
+                    label = "Hardware",
+                    color = Color(0xFF3B82F6),
+                    onClick = onNavigateToInfo,
+                    modifier = Modifier.weight(1f)
+                )
+                HardwareTile(
+                    icon = Icons.Default.Speed,
+                    label = "CPU",
+                    color = Color(0xFF8B5CF6),
+                    onClick = onNavigateToInfo,
+                    modifier = Modifier.weight(1f)
+                )
+                HardwareTile(
+                    icon = Icons.Default.Memory,
+                    label = "Memory",
+                    color = Color(0xFFA855F7),
+                    onClick = onNavigateToInfo,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -187,9 +218,27 @@ fun DeviceCenterScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                HardwareTile(icon = Icons.Default.BatteryChargingFull, label = "Battery", color = Color(0xFF10B981), modifier = Modifier.weight(1f))
-                HardwareTile(icon = Icons.Default.Storage, label = "Storage", color = Color(0xFFF59E0B), modifier = Modifier.weight(1f))
-                HardwareTile(icon = Icons.Default.Speed, label = "Performance", color = Color(0xFF00E5FF), modifier = Modifier.weight(1f))
+                HardwareTile(
+                    icon = Icons.Default.BatteryChargingFull,
+                    label = "Battery",
+                    color = Color(0xFF10B981),
+                    onClick = onNavigateToInfo,
+                    modifier = Modifier.weight(1f)
+                )
+                HardwareTile(
+                    icon = Icons.Default.Storage,
+                    label = "Storage",
+                    color = Color(0xFFF59E0B),
+                    onClick = onNavigateToInfo,
+                    modifier = Modifier.weight(1f)
+                )
+                HardwareTile(
+                    icon = Icons.Default.Speed,
+                    label = "Performance",
+                    color = Color(0xFF00E5FF),
+                    onClick = onNavigateToInfo,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -235,7 +284,7 @@ fun DeviceCenterScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Button(
-                                onClick = { },
+                                onClick = onNavigateToInfo,
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
                                 shape = RoundedCornerShape(20.dp)
                             ) {
@@ -256,6 +305,7 @@ private fun HardwareTile(
     icon: ImageVector,
     label: String,
     color: Color,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -264,7 +314,7 @@ private fun HardwareTile(
             .clip(RoundedCornerShape(12.dp))
             .background(color.copy(alpha = 0.2f))
             .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-            .clickable { },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
