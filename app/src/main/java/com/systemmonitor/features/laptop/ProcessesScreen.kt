@@ -19,20 +19,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.domain.model.ProcessInfo
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.systemmonitor.viewmodel.LaptopViewModel
+import com.systemmonitor.data.network.NetworkResult
+
+import androidx.compose.runtime.DisposableEffect
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProcessesScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    viewModel: LaptopViewModel = hiltViewModel()
 ) {
-    val sampleProcesses = remember {
-        listOf(
-            ProcessInfo(1044, "chrome.exe", 14.5, 8.2, "running", "User"),
-            ProcessInfo(2392, "python.exe (Agent)", 2.1, 1.4, "running", "SYSTEM"),
-            ProcessInfo(4810, "code.exe (VS Code)", 5.6, 6.1, "running", "User"),
-            ProcessInfo(5920, "explorer.exe", 0.8, 2.3, "running", "User"),
-            ProcessInfo(8124, "spotify.exe", 1.2, 3.5, "running", "User"),
-            ProcessInfo(9012, "svchost.exe", 0.1, 0.9, "running", "SYSTEM")
-        )
+    val processesState by viewModel.processesState.collectAsState()
+
+    DisposableEffect(Unit) {
+        viewModel.startProcessesPolling()
+        onDispose {
+            viewModel.stopProcessesPolling()
+        }
     }
 
     Scaffold(
@@ -44,36 +51,81 @@ fun ProcessesScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.refreshProcesses() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.White)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0A0F1D))
             )
         },
         containerColor = Color(0xFF0A0F1D)
     ) { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(sampleProcesses) { proc ->
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(proc.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Text("PID: ${proc.pid} • User: ${proc.username}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+            when (val state = processesState) {
+                is NetworkResult.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF00E5FF))
+                    }
+                }
+                is NetworkResult.Error -> {
+                    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Failed to load processes: ${state.message}",
+                                color = Color(0xFFEF4444),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = { viewModel.refreshProcesses() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                            ) {
+                                Text("Retry", color = Color.White)
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("CPU: ${proc.cpuPercent}%", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            Text("RAM: ${proc.memoryPercent}%", color = Color(0xFF3B82F6), fontSize = 12.sp)
+                    }
+                }
+                is NetworkResult.Success -> {
+                    val processes = state.data
+                    if (processes.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No processes running", color = Color(0xFF94A3B8), fontSize = 14.sp)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(processes) { proc ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(proc.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                            Text("PID: ${proc.pid} • User: ${proc.username}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("CPU: ${proc.cpuPercent}%", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Text("RAM: ${proc.memoryPercent}%", color = Color(0xFF3B82F6), fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

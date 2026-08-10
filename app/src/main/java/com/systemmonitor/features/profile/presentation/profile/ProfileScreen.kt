@@ -76,7 +76,6 @@ fun ProfileScreen(
     onNavigateToNotifications: () -> Unit,
     onNavigateToPrivacy: () -> Unit,
     onNavigateToPreferences: () -> Unit,
-    onNavigateToSubscription: () -> Unit,
     onNavigateToSupport: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onSignOut: () -> Unit,
@@ -146,8 +145,6 @@ fun ProfileScreen(
             ProfileNavigationTile("Privacy & Permissions", "App permissions, data collection & export", Icons.Default.Lock, Color(0xFF00E5FF), onNavigateToPrivacy)
             Spacer(modifier = Modifier.height(10.dp))
             ProfileNavigationTile("Preferences", "Theme, language, startup behavior", Icons.Default.Settings, Color(0xFF6366F1), onNavigateToPreferences)
-            Spacer(modifier = Modifier.height(10.dp))
-            ProfileNavigationTile("Subscription Plan", "Enterprise Pro Plan • Active", Icons.Default.Star, Color(0xFFEAB308), onNavigateToSubscription)
             Spacer(modifier = Modifier.height(10.dp))
             ProfileNavigationTile("Help & Support", "FAQ, Documentation, Contact Support", Icons.Default.Help, Color(0xFF14B8A6), onNavigateToSupport)
             Spacer(modifier = Modifier.height(10.dp))

@@ -36,13 +36,6 @@ fun SecuritySettingsScreen(
     val state by viewModel.uiState.collectAsState()
     val security = state.settings.security
 
-    var deviceSec by remember { mutableStateOf(security.deviceSecurityEnabled) }
-    var appLock by remember { mutableStateOf(security.appLockEnabled) }
-    var biometric by remember { mutableStateOf(security.biometricEnabled) }
-    var virusScan by remember { mutableStateOf(security.virusScanEnabled) }
-    var privacyCheck by remember { mutableStateOf(security.privacyCheckEnabled) }
-    var alerts by remember { mutableStateOf(security.securityAlertsEnabled) }
-
     val bgGradient = Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
 
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
@@ -66,9 +59,8 @@ fun SecuritySettingsScreen(
                 icon = Icons.Default.Shield,
                 title = "Device Security Protection",
                 desc = "Real-time threat monitoring & memory scan",
-                checked = deviceSec,
+                checked = security.deviceSecurityEnabled,
                 onCheckedChange = {
-                    deviceSec = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(security = security.copy(deviceSecurityEnabled = it))))
                 }
             )
@@ -79,9 +71,8 @@ fun SecuritySettingsScreen(
                 icon = Icons.Default.Lock,
                 title = "App Lock Protection",
                 desc = "Require passcode/biometric for selected apps",
-                checked = appLock,
+                checked = security.appLockEnabled,
                 onCheckedChange = {
-                    appLock = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(security = security.copy(appLockEnabled = it))))
                 }
             )
@@ -92,9 +83,8 @@ fun SecuritySettingsScreen(
                 icon = Icons.Default.Fingerprint,
                 title = "Biometric Unlock",
                 desc = "Use Fingerprint / Face authentication",
-                checked = biometric,
+                checked = security.biometricEnabled,
                 onCheckedChange = {
-                    biometric = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(security = security.copy(biometricEnabled = it))))
                 }
             )
@@ -105,9 +95,8 @@ fun SecuritySettingsScreen(
                 icon = Icons.Default.Security,
                 title = "Automated Virus & Malware Scan",
                 desc = "Daily background scanning for malware signatures",
-                checked = virusScan,
+                checked = security.virusScanEnabled,
                 onCheckedChange = {
-                    virusScan = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(security = security.copy(virusScanEnabled = it))))
                 }
             )
@@ -118,9 +107,8 @@ fun SecuritySettingsScreen(
                 icon = Icons.Default.PrivacyTip,
                 title = "Privacy & Permission Check",
                 desc = "Alert on excessive background permission usage",
-                checked = privacyCheck,
+                checked = security.privacyCheckEnabled,
                 onCheckedChange = {
-                    privacyCheck = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(security = security.copy(privacyCheckEnabled = it))))
                 }
             )

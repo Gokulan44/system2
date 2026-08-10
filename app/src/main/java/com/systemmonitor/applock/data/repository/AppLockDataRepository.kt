@@ -1,33 +1,45 @@
 package com.systemmonitor.applock.data.repository
 
-import com.systemmonitor.applock.database.AppLockDao
-import com.systemmonitor.applock.database.LockedAppEntity
-import com.systemmonitor.applock.database.UnlockHistoryEntity
-import kotlinx.coroutines.flow.Flow
+import com.systemmonitor.applock.data.database.AuthenticationLogDao
+import com.systemmonitor.applock.data.database.LockedAppDao
+import com.systemmonitor.applock.data.entity.AuthenticationLogEntity
+import com.systemmonitor.applock.data.entity.LockedAppEntity
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
 
 @Singleton
 class AppLockDataRepository @Inject constructor(
-    private val appLockDao: AppLockDao
+    private val lockedAppDao: LockedAppDao,
+    private val authLogDao: AuthenticationLogDao
 ) {
-    fun getLockedApps(): Flow<List<LockedAppEntity>> = appLockDao.getLockedApps()
+    fun getLockedApps(): Flow<List<LockedAppEntity>> = lockedAppDao.getAllLockedApps()
 
     suspend fun lockApp(packageName: String, appName: String) {
-        appLockDao.lockApp(LockedAppEntity(packageName = packageName, appName = appName, enabled = true))
+        lockedAppDao.insertLockedApp(
+            LockedAppEntity(packageName = packageName, appName = appName, lockedAt = System.currentTimeMillis())
+        )
     }
 
     suspend fun unlockApp(packageName: String) {
-        appLockDao.unlockApp(packageName)
+        lockedAppDao.deleteLockedApp(packageName)
     }
 
     suspend fun isAppLocked(packageName: String): Boolean {
-        return appLockDao.isAppLocked(packageName)
+        return lockedAppDao.isAppLocked(packageName)
     }
 
-    fun getAuthenticationLogs(): Flow<List<UnlockHistoryEntity>> = appLockDao.getUnlockHistory()
+    fun getAuthenticationLogs(): Flow<List<AuthenticationLogEntity>> = authLogDao.getAllLogs()
 
     suspend fun logAuthenticationAttempt(packageName: String, success: Boolean, method: String) {
-        appLockDao.logUnlockAttempt(UnlockHistoryEntity(appPackage = packageName, result = if (success) "SUCCESS" else "FAILED"))
+        authLogDao.insertLog(
+            AuthenticationLogEntity(
+                packageName = packageName,
+                timestamp = System.currentTimeMillis(),
+                result = if (success) "SUCCESS" else "FAILED",
+                authenticationMethod = method,
+                attemptCount = 1
+            )
+        )
     }
 }

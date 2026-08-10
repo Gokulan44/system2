@@ -1,6 +1,6 @@
 package com.systemmonitor.applock.model
 
-import com.systemmonitor.applock.database.LockedAppEntity
+import com.systemmonitor.applock.data.entity.LockedAppEntity as DataLockedAppEntity
 
 data class LockedApp(
     val packageName: String,
@@ -8,11 +8,11 @@ data class LockedApp(
     val lockedAt: Long = System.currentTimeMillis(),
     val isSystemApp: Boolean = false
 ) {
-    fun toEntity(): LockedAppEntity {
-        return LockedAppEntity(
+    fun toEntity(): DataLockedAppEntity {
+        return DataLockedAppEntity(
             packageName = packageName,
             appName = appName,
-            enabled = true
+            lockedAt = lockedAt
         )
     }
 }

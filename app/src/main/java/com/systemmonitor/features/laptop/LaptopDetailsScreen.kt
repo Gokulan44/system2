@@ -14,13 +14,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.data.network.NetworkResult
+import com.systemmonitor.domain.model.ConnectionMode
 import com.systemmonitor.domain.model.Laptop
 import com.systemmonitor.viewmodel.LaptopViewModel
+
+import androidx.compose.runtime.DisposableEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,10 +33,20 @@ fun LaptopDetailsScreen(
     onNavigateToRemote: () -> Unit,
     onNavigateToStream: () -> Unit,
     onNavigateToProcesses: () -> Unit,
+    onNavigateToUsage: () -> Unit,
+    onNavigateToNetwork: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val selectedLaptop by laptopViewModel.selectedLaptop.collectAsState()
     val telemetryState by laptopViewModel.telemetryState.collectAsState()
+    val modeSuggestion by laptopViewModel.connectionModeSuggestion.collectAsState()
+
+    DisposableEffect(Unit) {
+        laptopViewModel.startTelemetryPolling()
+        onDispose {
+            laptopViewModel.stopTelemetryPolling()
+        }
+    }
 
     val laptop = selectedLaptop ?: Laptop(
         id = "laptop_1",
@@ -67,7 +81,70 @@ fun LaptopDetailsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Quick Action Buttons Grid (Power Control, Screen Stream, Processes)
+            // ── Connection mode banner ──────────────────────────────────
+            val isLocal = laptop.connectionMode == ConnectionMode.LOCAL
+            val modeColor = if (isLocal) Color(0xFF00E5FF) else Color(0xFF8B5CF6)
+            val modeLabel = if (isLocal) "Local Wi-Fi" else "Remote Cloud"
+            val modeIcon = if (isLocal) Icons.Default.Wifi else Icons.Default.Cloud
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = modeColor.copy(alpha = 0.12f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(modeIcon, contentDescription = null, tint = modeColor, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(modeLabel, color = modeColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        if (isLocal) Text("Direct: ${laptop.ipAddress}:${laptop.port}", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                        else Text("Relay via Firebase Firestore", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                    }
+                    TextButton(
+                        onClick = {
+                            val nextMode = if (isLocal) ConnectionMode.REMOTE else ConnectionMode.LOCAL
+                            laptopViewModel.setConnectionMode(nextMode)
+                        }
+                    ) {
+                        Text("Switch", color = modeColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // ── Auto-detect suggestion banner ──────────────────────────
+            if (modeSuggestion == ConnectionMode.REMOTE) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Local connection failing", color = Color(0xFFF59E0B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Switch to Remote to connect via cloud", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                        }
+                        TextButton(onClick = { laptopViewModel.setConnectionMode(ConnectionMode.REMOTE) }) {
+                            Text("Switch", color = Color(0xFFF59E0B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(onClick = { laptopViewModel.dismissModeSuggestion() }) {
+                            Text("Dismiss", color = Color(0xFF64748B), fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -119,10 +196,10 @@ fun LaptopDetailsScreen(
                 }
                 is NetworkResult.Success -> {
                     val u = res.data
-                    TelemetryDetailCard("CPU Usage", "${u.cpu.usagePercent}%", "${u.cpu.processorName} (${u.cpu.logicalCores} Cores)", Color(0xFF00E5FF))
-                    TelemetryDetailCard("RAM Memory", "${u.memory.usagePercent}%", "${u.memory.usedBytes / (1024*1024*1024)}GB / ${u.memory.totalBytes / (1024*1024*1024)}GB Used", Color(0xFF3B82F6))
+                    TelemetryDetailCard("CPU Usage", "${u.cpu.usagePercent}%", "${u.cpu.processorName} (${u.cpu.logicalCores} Cores)", Color(0xFF00E5FF), onNavigateToUsage)
+                    TelemetryDetailCard("RAM Memory", "${u.memory.usagePercent}%", "${u.memory.usedBytes / (1024*1024*1024)}GB / ${u.memory.totalBytes / (1024*1024*1024)}GB Used", Color(0xFF3B82F6), onNavigateToUsage)
                     TelemetryDetailCard("Battery Status", "${u.battery.percent}%", u.battery.status, Color(0xFF10B981))
-                    TelemetryDetailCard("Network IO", "Online", "Host: ${u.network.hostname} (${u.network.primaryIp})", Color(0xFF8B5CF6))
+                    TelemetryDetailCard("Network IO", "Online", "Host: ${u.network.hostname} (${u.network.primaryIp})", Color(0xFF8B5CF6), onNavigateToNetwork)
                 }
             }
         }
@@ -155,11 +232,14 @@ fun QuickNavTile(
 }
 
 @Composable
-fun TelemetryDetailCard(title: String, value: String, subtitle: String, color: Color) {
+fun TelemetryDetailCard(title: String, value: String, subtitle: String, color: Color, onClick: () -> Unit = {}) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
         shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

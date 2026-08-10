@@ -35,13 +35,6 @@ fun NotificationSettingsScreen(
     val state by viewModel.uiState.collectAsState()
     val notif = state.settings.notifications
 
-    var master by remember { mutableStateOf(notif.masterNotificationsEnabled) }
-    var secAlerts by remember { mutableStateOf(notif.securityAlerts) }
-    var devAlerts by remember { mutableStateOf(notif.deviceAlerts) }
-    var battAlerts by remember { mutableStateOf(notif.batteryAlerts) }
-    var storAlerts by remember { mutableStateOf(notif.storageAlerts) }
-    var netAlerts by remember { mutableStateOf(notif.networkAlerts) }
-
     val bgGradient = Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
 
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
@@ -60,9 +53,8 @@ fun NotificationSettingsScreen(
                 icon = Icons.Default.Notifications,
                 title = "Master Notifications",
                 desc = "Enable or disable all app push notifications",
-                checked = master,
+                checked = notif.masterNotificationsEnabled,
                 onCheckedChange = {
-                    master = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(masterNotificationsEnabled = it))))
                 }
             )
@@ -73,9 +65,8 @@ fun NotificationSettingsScreen(
                 icon = Icons.Default.Security,
                 title = "Security & Threat Alerts",
                 desc = "Instant alerts on malware or suspicious logins",
-                checked = secAlerts,
+                checked = notif.securityAlerts,
                 onCheckedChange = {
-                    secAlerts = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(securityAlerts = it))))
                 }
             )
@@ -86,9 +77,8 @@ fun NotificationSettingsScreen(
                 icon = Icons.Default.BatteryAlert,
                 title = "Battery & Power Alerts",
                 desc = "Alert when battery drops below 20% or 10%",
-                checked = battAlerts,
+                checked = notif.batteryAlerts,
                 onCheckedChange = {
-                    battAlerts = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(batteryAlerts = it))))
                 }
             )
@@ -99,9 +89,8 @@ fun NotificationSettingsScreen(
                 icon = Icons.Default.Storage,
                 title = "Storage Threshold Alerts",
                 desc = "Notify when disk storage exceeds 90% capacity",
-                checked = storAlerts,
+                checked = notif.storageAlerts,
                 onCheckedChange = {
-                    storAlerts = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(storageAlerts = it))))
                 }
             )
@@ -112,9 +101,8 @@ fun NotificationSettingsScreen(
                 icon = Icons.Default.Wifi,
                 title = "Network Change Alerts",
                 desc = "Notify when Wi-Fi disconnects or changes",
-                checked = netAlerts,
+                checked = notif.networkAlerts,
                 onCheckedChange = {
-                    netAlerts = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(networkAlerts = it))))
                 }
             )

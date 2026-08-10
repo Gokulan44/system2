@@ -22,18 +22,46 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.applock.authentication.PinManager
 import com.systemmonitor.applock.ui.components.AuthenticationPad
+import kotlinx.coroutines.delay
+import com.systemmonitor.applock.security.IntrusionLogger
 
 @Composable
 fun PinScreen(
     pinManager: PinManager,
     onPinSuccess: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    intrusionLogger: IntrusionLogger? = null,
+    packageName: String = ""
 ) {
     var enteredPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showForgotDialog by remember { mutableStateOf(false) }
     var recoveryEmail by remember { mutableStateOf("") }
     var recoveryCode by remember { mutableStateOf("") }
+
+    var lockoutSeconds by remember { mutableStateOf(0) }
+    var isLockedOut by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isLockedOut) {
+        val remainingMs = pinManager.getLockoutTimeRemaining()
+        if (remainingMs > 0) {
+            isLockedOut = true
+            var seconds = (remainingMs / 1000).toInt().coerceAtLeast(1)
+            lockoutSeconds = seconds
+            errorMessage = "Too many failed attempts. Locked for $lockoutSeconds seconds."
+            while (seconds > 0) {
+                delay(1000)
+                seconds--
+                lockoutSeconds = seconds
+                if (seconds > 0) {
+                    errorMessage = "Too many failed attempts. Locked for $lockoutSeconds seconds."
+                } else {
+                    errorMessage = null
+                    isLockedOut = false
+                }
+            }
+        }
+    }
 
     val bgGradient = Brush.verticalGradient(
         colors = listOf(
@@ -102,14 +130,29 @@ fun PinScreen(
 
             AuthenticationPad(
                 onDigitClick = { digit ->
+                    if (isLockedOut) return@AuthenticationPad
                     if (enteredPin.length < 4) {
                         enteredPin += digit
                         if (enteredPin.length == 4) {
-                            if (pinManager.verifyPin(enteredPin) is com.systemmonitor.applock.authentication.AuthenticationResult.Success) {
-                                onPinSuccess()
-                            } else {
-                                errorMessage = "Incorrect PIN. Try again."
-                                enteredPin = ""
+                            when (val result = pinManager.verifyPin(enteredPin)) {
+                                is com.systemmonitor.applock.authentication.AuthenticationResult.Success -> {
+                                    onPinSuccess()
+                                }
+                                is com.systemmonitor.applock.authentication.AuthenticationResult.Lockout -> {
+                                    isLockedOut = true
+                                    enteredPin = ""
+                                    intrusionLogger?.logFailedAttempt(packageName)
+                                }
+                                is com.systemmonitor.applock.authentication.AuthenticationResult.Failed -> {
+                                    errorMessage = "Incorrect PIN. ${result.attemptsRemaining} attempts left."
+                                    enteredPin = ""
+                                    intrusionLogger?.logFailedAttempt(packageName)
+                                }
+                                else -> {
+                                    errorMessage = "Incorrect PIN. Try again."
+                                    enteredPin = ""
+                                    intrusionLogger?.logFailedAttempt(packageName)
+                                }
                             }
                         }
                     }

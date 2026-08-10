@@ -1,6 +1,7 @@
 package com.systemmonitor.local.database
 
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Central registry of all Room migrations. Keep every migration here (never
@@ -14,5 +15,15 @@ import androidx.room.migration.Migration
  * }
  */
 object DatabaseMigrations {
-    val ALL = arrayOf<Migration>()
+
+    /** v3 → v4: adds connectionMode column to laptops table (LOCAL | REMOTE) */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE laptops ADD COLUMN connectionMode TEXT NOT NULL DEFAULT 'LOCAL'"
+            )
+        }
+    }
+
+    val ALL = arrayOf<Migration>(MIGRATION_3_4)
 }

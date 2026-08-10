@@ -1,26 +1,37 @@
 package com.systemmonitor.data.network
 
 import com.systemmonitor.domain.model.CommandType
+import com.systemmonitor.domain.model.ConnectionMode
 import com.systemmonitor.domain.model.Laptop
+import com.systemmonitor.domain.model.ProcessInfo
 import com.systemmonitor.domain.model.UsageInfo
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Routes every operation to the correct transport layer:
+ *  - LOCAL  → direct HTTP calls to the Windows Agent at 192.168.x.x:8765
+ *  - REMOTE → Firebase Firestore relay (long distance, different networks)
+ */
 @Singleton
-class ConnectionManager @Inject constructor() {
-    private val apiClient = ApiClient()
+class ConnectionManager @Inject constructor(
+    private val apiClient: ApiClient,
+    private val remoteRelay: RemoteRelayManager
+) {
+    fun getBaseUrl(laptop: Laptop): String = "http://${laptop.ipAddress}:${laptop.port}"
 
-    fun getBaseUrl(laptop: Laptop): String {
-        return "http://${laptop.ipAddress}:${laptop.port}"
-    }
-
-    fun getWebSocketStreamUrl(laptop: Laptop): String {
-        return "ws://${laptop.ipAddress}:${laptop.port}/ws/stream"
-    }
+    fun getWebSocketStreamUrl(laptop: Laptop): String =
+        "ws://${laptop.ipAddress}:${laptop.port}/ws/stream"
 
     suspend fun checkStatus(laptop: Laptop): NetworkResult<Boolean> {
-        val url = getBaseUrl(laptop)
-        return apiClient.getStatus(url)
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.getStatus(getBaseUrl(laptop))
+            ConnectionMode.REMOTE -> remoteRelay.checkRemoteStatus(laptop.id)
+        }
+    }
+
+    suspend fun checkStatus(ipAddress: String, port: Int): NetworkResult<Boolean> {
+        return apiClient.getStatus("http://$ipAddress:$port")
     }
 
     suspend fun verifyPairing(
@@ -30,13 +41,21 @@ class ConnectionManager @Inject constructor() {
         deviceName: String,
         deviceId: String
     ): NetworkResult<PairingResponse> {
-        val url = "http://$ipAddress:$port"
-        return apiClient.verifyPairing(url, pairingCode, deviceName, deviceId)
+        return apiClient.verifyPairing("http://$ipAddress:$port", pairingCode, deviceName, deviceId)
     }
 
     suspend fun fetchTelemetry(laptop: Laptop): NetworkResult<UsageInfo> {
-        val url = getBaseUrl(laptop)
-        return apiClient.fetchTelemetry(url, laptop.accessToken)
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.fetchTelemetry(getBaseUrl(laptop), laptop.accessToken)
+            ConnectionMode.REMOTE -> remoteRelay.fetchRemoteTelemetry(laptop)
+        }
+    }
+
+    suspend fun fetchProcesses(laptop: Laptop): NetworkResult<List<ProcessInfo>> {
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.fetchProcesses(getBaseUrl(laptop), laptop.accessToken)
+            ConnectionMode.REMOTE -> remoteRelay.fetchRemoteProcesses(laptop)
+        }
     }
 
     suspend fun executePowerCommand(
@@ -44,7 +63,13 @@ class ConnectionManager @Inject constructor() {
         command: CommandType,
         pin: String?
     ): NetworkResult<String> {
-        val url = getBaseUrl(laptop)
-        return apiClient.executePowerCommand(url, laptop.accessToken, command, pin)
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.executePowerCommand(
+                getBaseUrl(laptop), laptop.accessToken, command, pin
+            )
+            ConnectionMode.REMOTE -> remoteRelay.executePowerCommand(
+                laptop, command.name.lowercase(), pin
+            )
+        }
     }
 }

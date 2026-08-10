@@ -9,29 +9,21 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ApiClient {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .writeTimeout(5, TimeUnit.SECONDS)
-        .build()
-
+@Singleton
+class ApiClient @Inject constructor(
+    private val client: OkHttpClient
+) {
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     suspend fun getStatus(baseUrl: String): NetworkResult<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder()
-                .url("$baseUrl/api/status")
-                .get()
-                .build()
+            val request = Request.Builder().url("$baseUrl/api/status").get().build()
             val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                NetworkResult.Success(true)
-            } else {
-                NetworkResult.Error("HTTP Error: ${response.code}")
-            }
+            if (response.isSuccessful) NetworkResult.Success(true)
+            else NetworkResult.Error("HTTP Error: ${response.code}")
         } catch (e: Exception) {
             NetworkResult.Error(e.message ?: "Connection failed", e)
         }
@@ -53,15 +45,17 @@ class ApiClient {
                 .url("$baseUrl/api/pairing/verify")
                 .post(json.toString().toRequestBody(jsonMediaType))
                 .build()
-
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: ""
-
             if (response.isSuccessful) {
                 val obj = JSONObject(body)
-                val token = obj.optString("access_token")
-                val msg = obj.optString("message", "Paired")
-                NetworkResult.Success(PairingResponse(success = true, token = token, message = msg))
+                NetworkResult.Success(
+                    PairingResponse(
+                        success = true,
+                        token = obj.optString("access_token"),
+                        message = obj.optString("message", "Paired")
+                    )
+                )
             } else {
                 val err = if (body.isNotEmpty()) JSONObject(body).optString("detail", "Pairing failed") else "Pairing failed"
                 NetworkResult.Error(err)
@@ -74,16 +68,11 @@ class ApiClient {
     suspend fun fetchTelemetry(baseUrl: String, token: String?): NetworkResult<UsageInfo> = withContext(Dispatchers.IO) {
         try {
             val reqBuilder = Request.Builder().url("$baseUrl/api/telemetry").get()
-            if (!token.isNullOrEmpty()) {
-                reqBuilder.addHeader("Authorization", "Bearer $token")
-            }
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
             val response = client.newCall(reqBuilder.build()).execute()
             val body = response.body?.string() ?: ""
-
             if (response.isSuccessful && body.isNotEmpty()) {
-                val root = JSONObject(body)
-                val usage = parseTelemetryJson(root)
-                NetworkResult.Success(usage)
+                NetworkResult.Success(ApiClientParser.parseTelemetryJson(JSONObject(body)))
             } else {
                 NetworkResult.Error("Failed to fetch telemetry")
             }
@@ -106,69 +95,34 @@ class ApiClient {
             val reqBuilder = Request.Builder()
                 .url("$baseUrl/api/power")
                 .post(json.toString().toRequestBody(jsonMediaType))
-
-            if (!token.isNullOrEmpty()) {
-                reqBuilder.addHeader("Authorization", "Bearer $token")
-            }
-
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
             val response = client.newCall(reqBuilder.build()).execute()
             val body = response.body?.string() ?: ""
-
             if (response.isSuccessful) {
-                val obj = JSONObject(body)
-                val msg = obj.optString("message", "Command executed successfully")
-                NetworkResult.Success(msg)
+                NetworkResult.Success(JSONObject(body).optString("message", "Command executed successfully"))
             } else {
                 val errObj = if (body.isNotEmpty()) JSONObject(body) else null
-                val err = errObj?.optString("detail") ?: "Power command failed"
-                NetworkResult.Error(err)
+                NetworkResult.Error(errObj?.optString("detail") ?: "Power command failed")
             }
         } catch (e: Exception) {
             NetworkResult.Error(e.message ?: "Command execution error", e)
         }
     }
 
-    private fun parseTelemetryJson(root: JSONObject): UsageInfo {
-        val cpuObj = root.optJSONObject("cpu") ?: JSONObject()
-        val cpu = CpuInfo(
-            processorName = cpuObj.optString("processor_name", "Intel Core i7"),
-            usagePercent = cpuObj.optDouble("usage_percent", 0.0),
-            logicalCores = cpuObj.optInt("logical_cores", 8),
-            physicalCores = cpuObj.optInt("physical_cores", 4),
-            frequencyMhz = cpuObj.optDouble("frequency_mhz", 2400.0)
-        )
-
-        val memObj = root.optJSONObject("memory") ?: JSONObject()
-        val mem = MemoryInfo(
-            totalBytes = memObj.optLong("total_bytes", 0),
-            availableBytes = memObj.optLong("available_bytes", 0),
-            usedBytes = memObj.optLong("used_bytes", 0),
-            usagePercent = memObj.optDouble("usage_percent", 0.0)
-        )
-
-        val batObj = root.optJSONObject("battery") ?: JSONObject()
-        val bat = LaptopBatteryInfo(
-            hasBattery = batObj.optBoolean("has_battery", true),
-            percent = batObj.optDouble("percent", 100.0),
-            powerPlugged = batObj.optBoolean("power_plugged", true),
-            status = batObj.optString("status", "AC Power")
-        )
-
-        val netObj = root.optJSONObject("network") ?: JSONObject()
-        val net = LaptopNetworkInfo(
-            hostname = netObj.optString("hostname", "Laptop"),
-            primaryIp = netObj.optString("primary_ip", "192.168.1.50"),
-            bytesSent = netObj.optLong("bytes_sent", 0),
-            bytesRecv = netObj.optLong("bytes_recv", 0)
-        )
-
-        return UsageInfo(
-            cpu = cpu,
-            memory = mem,
-            battery = bat,
-            network = net,
-            uptimeSeconds = root.optDouble("uptime_seconds", 0.0)
-        )
+    suspend fun fetchProcesses(baseUrl: String, token: String?): NetworkResult<List<ProcessInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val reqBuilder = Request.Builder().url("$baseUrl/api/processes").get()
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
+            val response = client.newCall(reqBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+            if (response.isSuccessful && body.isNotEmpty()) {
+                NetworkResult.Success(ApiClientParser.parseProcessesJson(body))
+            } else {
+                NetworkResult.Error("Failed to fetch processes")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Processes error", e)
+        }
     }
 }
 

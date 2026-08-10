@@ -3,6 +3,7 @@ package com.systemmonitor.repository
 import com.systemmonitor.data.network.ConnectionManager
 import com.systemmonitor.data.network.NetworkResult
 import com.systemmonitor.data.network.PairingResponse
+import com.systemmonitor.domain.model.ConnectionMode
 import com.systemmonitor.domain.model.Laptop
 import com.systemmonitor.domain.model.LaptopStatus
 import com.systemmonitor.domain.model.UsageInfo
@@ -27,7 +28,8 @@ class LaptopRepository @Inject constructor(
         port: Int,
         pairingCode: String,
         deviceName: String,
-        deviceId: String
+        deviceId: String,
+        connectionMode: ConnectionMode = ConnectionMode.LOCAL
     ): NetworkResult<Laptop> {
         val res = connectionManager.verifyPairing(ipAddress, port, pairingCode, deviceName, deviceId)
         return when (res) {
@@ -38,7 +40,8 @@ class LaptopRepository @Inject constructor(
                     ipAddress = ipAddress,
                     port = port,
                     status = LaptopStatus.ONLINE,
-                    isLocalConnection = true,
+                    isLocalConnection = connectionMode == ConnectionMode.LOCAL,
+                    connectionMode = connectionMode,
                     accessToken = res.data.token,
                     lastSeen = System.currentTimeMillis()
                 )
@@ -50,8 +53,24 @@ class LaptopRepository @Inject constructor(
         }
     }
 
+    suspend fun updateConnectionMode(laptopId: String, mode: ConnectionMode) {
+        laptopDao.updateConnectionMode(laptopId, mode.name)
+    }
+
+    suspend fun checkStatus(ipAddress: String, port: Int): NetworkResult<Boolean> {
+        return connectionManager.checkStatus(ipAddress, port)
+    }
+
+    suspend fun checkStatusForLaptop(laptop: Laptop): NetworkResult<Boolean> {
+        return connectionManager.checkStatus(laptop)
+    }
+
     suspend fun fetchTelemetry(laptop: Laptop): NetworkResult<UsageInfo> {
         return connectionManager.fetchTelemetry(laptop)
+    }
+
+    suspend fun fetchProcesses(laptop: Laptop): NetworkResult<List<com.systemmonitor.domain.model.ProcessInfo>> {
+        return connectionManager.fetchProcesses(laptop)
     }
 
     suspend fun deleteLaptop(laptopId: String) {
@@ -66,6 +85,8 @@ class LaptopRepository @Inject constructor(
         os = os,
         status = runCatching { LaptopStatus.valueOf(status) }.getOrDefault(LaptopStatus.OFFLINE),
         isLocalConnection = isLocalConnection,
+        connectionMode = runCatching { ConnectionMode.valueOf(connectionMode) }
+            .getOrDefault(ConnectionMode.LOCAL),
         accessToken = accessToken,
         lastSeen = lastSeen
     )
@@ -78,6 +99,7 @@ class LaptopRepository @Inject constructor(
         os = os,
         status = status.name,
         isLocalConnection = isLocalConnection,
+        connectionMode = connectionMode.name,
         accessToken = accessToken,
         lastSeen = lastSeen
     )

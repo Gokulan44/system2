@@ -1,10 +1,10 @@
 package com.systemmonitor.applock
 
-import com.systemmonitor.applock.database.LockedAppEntity
+import com.systemmonitor.applock.data.entity.LockedAppEntity
 import com.systemmonitor.applock.manager.AppLockManager
-import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
 
 @Singleton
 class AppLockRepository @Inject constructor(

@@ -9,18 +9,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.systemmonitor.domain.model.ConnectionMode
 import com.systemmonitor.domain.model.Laptop
 import com.systemmonitor.viewmodel.LaptopViewModel
 
@@ -57,7 +61,7 @@ fun DeviceListScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Current Mobile Device
+            // Current Mobile Device section
             item {
                 Text(
                     text = "This Mobile Device",
@@ -122,33 +126,63 @@ fun DeviceListScreen(
                 }
             } else {
                 items(laptops) { laptop ->
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().clickable { onSelectLaptop(laptop) }
+                    LaptopCard(laptop = laptop, onClick = { onSelectLaptop(laptop) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LaptopCard(laptop: Laptop, onClick: () -> Unit) {
+    val isLocal = laptop.connectionMode == ConnectionMode.LOCAL
+    val modeColor = if (isLocal) Color(0xFF00E5FF) else Color(0xFF8B5CF6)
+    val modeIcon = if (isLocal) Icons.Default.Wifi else Icons.Default.Cloud
+    val modeLabel = if (isLocal) "Local" else "Remote"
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(modeColor.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Laptop, contentDescription = null, tint = modeColor)
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(laptop.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Connection mode badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(modeColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(Color(0xFF00E5FF).copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Laptop, contentDescription = null, tint = Color(0xFF00E5FF))
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(laptop.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("IP: ${laptop.ipAddress}:${laptop.port}", color = Color(0xFF94A3B8), fontSize = 12.sp)
-                            }
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF64748B))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(modeIcon, contentDescription = null, tint = modeColor, modifier = Modifier.size(10.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(modeLabel, color = modeColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
+                if (isLocal) {
+                    Text("IP: ${laptop.ipAddress}:${laptop.port}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                } else {
+                    Text("Cloud relay • Firebase", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                }
             }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF64748B))
         }
     }
 }

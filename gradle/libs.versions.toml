@@ -47,6 +47,8 @@ firebase-storage = { group = "com.google.firebase", name = "firebase-storage" }
 
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version = "1.1.0" }
+androidx-fragment = { group = "androidx.fragment", name = "fragment-ktx", version = "1.8.2" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

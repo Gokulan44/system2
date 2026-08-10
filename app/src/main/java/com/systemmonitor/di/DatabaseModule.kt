@@ -2,8 +2,10 @@ package com.systemmonitor.di
 
 import android.content.Context
 import androidx.room.Room
-import com.systemmonitor.applock.database.AppLockDao
-import com.systemmonitor.applock.database.AppLockDatabase
+import com.systemmonitor.applock.data.database.AppDatabase as AppLockDataDatabase
+import com.systemmonitor.applock.data.database.AppLockSettingsDao
+import com.systemmonitor.applock.data.database.AuthenticationLogDao
+import com.systemmonitor.applock.data.database.LockedAppDao
 import com.systemmonitor.core.Constants
 import com.systemmonitor.local.database.AppDatabase
 import com.systemmonitor.local.database.DatabaseMigrations
@@ -59,13 +61,19 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideAppLockDatabase(@ApplicationContext context: Context): AppLockDatabase =
-        Room.databaseBuilder(context, AppLockDatabase::class.java, "app_lock.db")
+    fun provideAppLockDatabase(@ApplicationContext context: Context): AppLockDataDatabase =
+        Room.databaseBuilder(context, AppLockDataDatabase::class.java, "app_lock.db")
             .fallbackToDestructiveMigration()
             .build()
 
     @Provides
-    fun provideAppLockDao(db: AppLockDatabase): AppLockDao = db.appLockDao()
+    fun provideLockedAppDao(db: AppLockDataDatabase): LockedAppDao = db.lockedAppDao()
+
+    @Provides
+    fun provideAuthenticationLogDao(db: AppLockDataDatabase): AuthenticationLogDao = db.authenticationLogDao()
+
+    @Provides
+    fun provideAppLockSettingsDao(db: AppLockDataDatabase): AppLockSettingsDao = db.appLockSettingsDao()
 
     @Provides
     @Singleton

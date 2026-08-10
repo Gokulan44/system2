@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.systemmonitor.features.security.domain.model.SecurityScan
 import com.systemmonitor.features.security.domain.model.ThreatInfo
 import com.systemmonitor.features.security.domain.model.ThreatSeverity
+import com.systemmonitor.features.security.components.ThreatCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,28 +98,10 @@ fun ScanResultScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 scanResult.threats.forEach { threat ->
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f), RoundedCornerShape(14.dp)),
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFF0F172A).copy(alpha = 0.85f)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(threat.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                Box(
-                                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(Color(0xFFEF4444).copy(alpha = 0.2f)).padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(threat.severity.name, color = Color(0xFFEF4444), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(threat.description, color = Color(0xFF94A3B8), fontSize = 12.sp)
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text("Recommended Action: ${threat.recommendedAction}", color = Color(0xFF00E5FF), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
+                    ThreatCard(
+                        threat = threat,
+                        onResolveClick = { onViewThreatDetails(threat) }
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
                 }
             }

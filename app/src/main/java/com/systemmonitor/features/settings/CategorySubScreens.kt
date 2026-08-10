@@ -26,13 +26,17 @@ import androidx.compose.ui.unit.sp
 
 // 1. Screen & Display Settings
 @Composable
-fun ScreenSettingsScreen(onBackClick: () -> Unit) {
-    var darkMode by remember { mutableStateOf(true) }
-    var autoBrightness by remember { mutableStateOf(true) }
+fun ScreenSettingsScreen(viewModel: SettingsViewModel, onBackClick: () -> Unit) {
+    val state by viewModel.uiState.collectAsState()
+    val screen = state.settings.screen
     CategoryBaseScreen("Screen & Display Settings", onBackClick) {
-        SimpleToggleTile("Dark Theme (Amoled)", "Optimized dark theme for OLED screens", darkMode) { darkMode = it }
+        SimpleToggleTile("Dark Theme (Amoled)", "Optimized dark theme for OLED screens", screen.darkModeEnabled) {
+            viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(screen = screen.copy(darkModeEnabled = it))))
+        }
         Spacer(modifier = Modifier.height(10.dp))
-        SimpleToggleTile("Auto Brightness Adjust", "Dynamically adjust screen brightness", autoBrightness) { autoBrightness = it }
+        SimpleToggleTile("Auto Brightness Adjust", "Dynamically adjust screen brightness", screen.autoBrightnessEnabled) {
+            viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(screen = screen.copy(autoBrightnessEnabled = it))))
+        }
     }
 }
 
@@ -50,26 +54,82 @@ fun DeviceSettingsScreen(onBackClick: () -> Unit) {
 
 // 3. Remote Control Settings
 @Composable
-fun RemoteSettingsScreen(onBackClick: () -> Unit) {
-    var remoteEnabled by remember { mutableStateOf(true) }
+fun RemoteSettingsScreen(viewModel: SettingsViewModel, onBackClick: () -> Unit) {
+    val state by viewModel.uiState.collectAsState()
+    val remote = state.settings.remote
     CategoryBaseScreen("Remote Control Settings", onBackClick) {
-        SimpleToggleTile("Enable Remote Control", "Allow paired Windows PC to trigger power actions", remoteEnabled) { remoteEnabled = it }
+        SimpleToggleTile("Enable Remote Control", "Allow paired Windows PC to trigger power actions", remote.remoteControlEnabled) {
+            viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(remote = remote.copy(remoteControlEnabled = it))))
+        }
         Spacer(modifier = Modifier.height(10.dp))
-        SimpleInfoTile("Paired Windows Agent", "Windows-Workstation-Pro (Connected)")
+        SimpleInfoTile("Paired Windows Agent", if (remote.laptopConnected) remote.laptopName else "No device paired")
         Spacer(modifier = Modifier.height(10.dp))
-        SimpleInfoTile("Pairing Security Code", "948201 (AES-256 JWT)")
+        SimpleInfoTile("Pairing Security Code", if (remote.pairingCode.isNotEmpty()) remote.pairingCode else "No active code")
     }
 }
 
 // 4. Privacy & Permissions Settings
 @Composable
-fun PrivacySettingsScreen(onBackClick: () -> Unit) {
-    var usageAccess by remember { mutableStateOf(true) }
-    var dataCollection by remember { mutableStateOf(false) }
+fun PrivacySettingsScreen(
+    viewModel: SettingsViewModel,
+    onPermissionManagerClick: () -> Unit,
+    onDataCollectionClick: () -> Unit,
+    onUsageAccessClick: () -> Unit,
+    onAccessibilitySettingsClick: () -> Unit,
+    onBackClick: () -> Unit
+) {
     CategoryBaseScreen("Privacy & Permissions Settings", onBackClick) {
-        SimpleToggleTile("Usage Access Permission", "Required for App Usage statistics", usageAccess) { usageAccess = it }
+        SimpleNavigationTile(
+            title = "Permission Manager",
+            desc = "Configure Camera, Microphone, and Location permissions",
+            onClick = onPermissionManagerClick
+        )
         Spacer(modifier = Modifier.height(10.dp))
-        SimpleToggleTile("Anonymous Diagnostic Analytics", "Send crash reports to improve stability", dataCollection) { dataCollection = it }
+        SimpleNavigationTile(
+            title = "Data Collection & Consent",
+            desc = "Manage crash reporting & telemetry tracking settings",
+            onClick = onDataCollectionClick
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        SimpleNavigationTile(
+            title = "Usage Access Permission",
+            desc = "Grant access to device application usage telemetry",
+            onClick = onUsageAccessClick
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        SimpleNavigationTile(
+            title = "Accessibility Settings",
+            desc = "Grant accessibility service access for AppLock protection",
+            onClick = onAccessibilitySettingsClick
+        )
+    }
+}
+
+@Composable
+fun SimpleNavigationTile(title: String, desc: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.85f)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(desc, color = Color(0xFF94A3B8), fontSize = 11.sp)
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Color(0xFF64748B)
+            )
+        }
     }
 }
 

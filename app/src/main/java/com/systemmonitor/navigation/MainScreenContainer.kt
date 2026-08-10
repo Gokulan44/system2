@@ -27,10 +27,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.systemmonitor.applock.manager.AppLockManager
+import com.systemmonitor.applock.settings.AppLockSettingsViewModel
 import com.systemmonitor.applock.ui.ChooseLockMethodScreen
 import com.systemmonitor.applock.ui.LockResultScreen
-import com.systemmonitor.applock.ui.SelectAppsScreen
 import com.systemmonitor.applock.ui.SetPinScreen
+import com.systemmonitor.applock.ui.applock.AppLockDashboardScreen
+import com.systemmonitor.applock.ui.applock.ProtectedAppsScreen
+import com.systemmonitor.applock.ui.applock.AddAppsScreen
 import com.systemmonitor.features.alerts.AlertsScreen
 import com.systemmonitor.features.auth.LoginScreen
 import com.systemmonitor.features.auth.RegisterScreen
@@ -38,10 +41,13 @@ import com.systemmonitor.features.dashboard.DashboardScreen
 import com.systemmonitor.features.device.DeviceCenterScreen
 import com.systemmonitor.features.devices.DeviceListScreen
 import com.systemmonitor.features.devices.PairLaptopScreen
+import com.systemmonitor.features.devices.AddLaptopScreen
 import com.systemmonitor.features.files.FileCenterScreen
 import com.systemmonitor.features.laptop.LaptopDetailsScreen
 import com.systemmonitor.features.laptop.ProcessesScreen
-import com.systemmonitor.features.network.NetworkCenterScreen
+import com.systemmonitor.features.laptop.LaptopUsageScreen
+import com.systemmonitor.features.laptop.NetworkScreen as LaptopNetworkScreen
+import com.systemmonitor.features.network.NetworkScreen
 import com.systemmonitor.features.parental.ParentalControlScreen
 import com.systemmonitor.features.profile.presentation.profile.ProfileScreen
 import com.systemmonitor.features.profile.presentation.edit.EditProfileScreen
@@ -54,7 +60,6 @@ import com.systemmonitor.features.profile.presentation.ProfileAboutScreen
 import com.systemmonitor.features.profile.presentation.ProfileNotificationSettingsScreen
 import com.systemmonitor.features.profile.presentation.ProfilePreferencesScreen
 import com.systemmonitor.features.profile.presentation.ProfilePrivacyScreen
-import com.systemmonitor.features.profile.presentation.SubscriptionScreen
 import com.systemmonitor.features.profile.ProfileUpdatedScreen
 import com.systemmonitor.features.remote.RemoteControlScreen
 import com.systemmonitor.features.reports.ReportsScreen
@@ -67,6 +72,7 @@ import com.systemmonitor.features.security.presentation.result.ScanResultScreen
 import com.systemmonitor.features.security.presentation.result.SecurityReportScreen
 import com.systemmonitor.features.security.presentation.scan.SecurityScanScreen
 import com.systemmonitor.features.usage.AppUsageScreen
+import com.systemmonitor.features.usage.AppUsageViewModel
 import com.systemmonitor.features.usage.UsageAnalyticsScreen
 import com.systemmonitor.features.usage.UsageDetailsScreen
 import com.systemmonitor.features.wellbeing.DigitalWellbeingScreen
@@ -79,6 +85,10 @@ import com.systemmonitor.features.settings.AdvancedSettingsScreen
 import com.systemmonitor.features.settings.BackupSettingsScreen
 import com.systemmonitor.features.settings.DeviceSettingsScreen
 import com.systemmonitor.features.settings.PrivacySettingsScreen
+import com.systemmonitor.features.settings.privacy.PermissionManagerScreen
+import com.systemmonitor.features.settings.privacy.DataCollectionScreen
+import com.systemmonitor.features.settings.privacy.UsageAccessScreen
+import com.systemmonitor.features.settings.privacy.AccessibilitySettingsScreen
 import com.systemmonitor.features.settings.RemoteSettingsScreen
 import com.systemmonitor.features.settings.ReportSettingsScreen
 import com.systemmonitor.features.settings.ScreenSettingsScreen
@@ -88,14 +98,17 @@ import com.systemmonitor.features.settings.monitoring.MonitoringSettingsScreen
 import com.systemmonitor.features.settings.notifications.NotificationSettingsScreen
 import com.systemmonitor.features.settings.power.PowerSettingsScreen
 import com.systemmonitor.features.settings.security.SecuritySettingsScreen
+import com.systemmonitor.features.settings.security.AppLockSettingsScreen
 
 @Composable
 fun MainScreenContainer(
     appLockManager: AppLockManager,
+    authViewModel: AuthViewModel = hiltViewModel(),
     laptopViewModel: LaptopViewModel = hiltViewModel(),
     screenViewModel: ScreenViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel(),
-    settingsViewModel: SettingsViewModel = hiltViewModel()
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    appUsageViewModel: AppUsageViewModel = hiltViewModel(),
+    appLockSettingsViewModel: AppLockSettingsViewModel = hiltViewModel()
 ) {
     var currentDestination by remember { mutableStateOf<NavDestination>(NavDestination.Home) }
     var lastScanResult by remember { mutableStateOf<SecurityScan?>(null) }
@@ -107,6 +120,8 @@ fun MainScreenContainer(
 
     var selectedAppName by remember { mutableStateOf("YouTube") }
     var selectedAppDuration by remember { mutableStateOf("1h 20m") }
+
+    var selectedLockMethod by remember { mutableStateOf("PIN") }
 
     // Bottom Navigation Bar Items (matching image 6-tab navigation)
     val bottomNavItems = listOf(
@@ -159,23 +174,38 @@ fun MainScreenContainer(
                 )
                 is NavDestination.DeviceCenter -> DeviceListScreen(
                     laptopViewModel = laptopViewModel,
-                    onAddDeviceClick = { currentDestination = NavDestination.PairLaptop },
+                    onAddDeviceClick = { currentDestination = NavDestination.AddLaptop },
                     onSelectLaptop = { laptop ->
                         laptopViewModel.selectLaptop(laptop)
                         currentDestination = NavDestination.LaptopDetails
                     }
                 )
+                is NavDestination.AddLaptop -> AddLaptopScreen(
+                    laptopViewModel = laptopViewModel,
+                    onStatusOnline = { currentDestination = NavDestination.PairLaptop },
+                    onBackClick = { currentDestination = NavDestination.DeviceCenter }
+                )
                 is NavDestination.PairLaptop -> PairLaptopScreen(
                     laptopViewModel = laptopViewModel,
                     onPairSuccess = { currentDestination = NavDestination.LaptopDetails },
-                    onBackClick = { currentDestination = NavDestination.DeviceCenter }
+                    onBackClick = { currentDestination = NavDestination.AddLaptop }
                 )
                 is NavDestination.LaptopDetails -> LaptopDetailsScreen(
                     laptopViewModel = laptopViewModel,
                     onNavigateToRemote = { currentDestination = NavDestination.RemoteControl },
                     onNavigateToStream = { currentDestination = NavDestination.ScreenViewer },
                     onNavigateToProcesses = { currentDestination = NavDestination.Processes },
+                    onNavigateToUsage = { currentDestination = NavDestination.LaptopUsage },
+                    onNavigateToNetwork = { currentDestination = NavDestination.LaptopNetwork },
                     onBackClick = { currentDestination = NavDestination.DeviceCenter }
+                )
+                is NavDestination.LaptopUsage -> LaptopUsageScreen(
+                    laptopViewModel = laptopViewModel,
+                    onBackClick = { currentDestination = NavDestination.LaptopDetails }
+                )
+                is NavDestination.LaptopNetwork -> LaptopNetworkScreen(
+                    laptopViewModel = laptopViewModel,
+                    onBackClick = { currentDestination = NavDestination.LaptopDetails }
                 )
                 is NavDestination.RemoteControl -> RemoteControlScreen(
                     laptopViewModel = laptopViewModel,
@@ -239,28 +269,50 @@ fun MainScreenContainer(
                         }
                     )
                 }
-                is NavDestination.NetworkCenter -> NetworkCenterScreen(
+                is NavDestination.NetworkCenter -> NetworkScreen(
                     onBackClick = { currentDestination = NavDestination.Home }
                 )
                 is NavDestination.FileCenter -> FileCenterScreen()
-                is NavDestination.AppLock -> SelectAppsScreen(
-                    onBackClick = { currentDestination = NavDestination.Home },
+                is NavDestination.AppLock -> AppLockDashboardScreen(
+                    appLockManager = appLockManager,
+                    onNavigateToSelectApps = { currentDestination = NavDestination.ProtectedApps },
+                    onNavigateToSettings = { currentDestination = NavDestination.AppLockSettings },
+                    onBackClick = { currentDestination = NavDestination.Home }
+                )
+                is NavDestination.AppLockSettings -> AppLockSettingsScreen(
+                    viewModel = appLockSettingsViewModel,
                     onNavigateToChooseMethod = { currentDestination = NavDestination.ChooseLockMethod },
-                    appLockManager = appLockManager
+                    onBackClick = { currentDestination = NavDestination.AppLock }
+                )
+                is NavDestination.ProtectedApps -> ProtectedAppsScreen(
+                    appLockManager = appLockManager,
+                    onAddAppsClick = { currentDestination = NavDestination.AddApps },
+                    onBackClick = { currentDestination = NavDestination.AppLock }
+                )
+                is NavDestination.AddApps -> AddAppsScreen(
+                    appLockManager = appLockManager,
+                    onBackClick = { currentDestination = NavDestination.ProtectedApps }
                 )
                 is NavDestination.ChooseLockMethod -> ChooseLockMethodScreen(
-                    onSelectPin = { currentDestination = NavDestination.SetPin },
-                    onSelectOtherMethod = { currentDestination = NavDestination.LockResult },
+                    onSelectPin = { selectedLockMethod = "PIN"; currentDestination = NavDestination.SetPin },
+                    onSelectOtherMethod = { method ->
+                        selectedLockMethod = method
+                        currentDestination = NavDestination.SetPin
+                    },
                     onBackClick = { currentDestination = NavDestination.AppLock }
                 )
                 is NavDestination.SetPin -> SetPinScreen(
+                    appLockManager = appLockManager,
+                    lockMethodName = selectedLockMethod,
                     onPinSetSuccess = { currentDestination = NavDestination.LockResult },
                     onBackClick = { currentDestination = NavDestination.ChooseLockMethod }
                 )
                 is NavDestination.LockResult -> LockResultScreen(
+                    lockMethodName = selectedLockMethod,
                     onDoneClick = { currentDestination = NavDestination.Home }
                 )
                 is NavDestination.AppUsage -> AppUsageScreen(
+                    appUsageViewModel = appUsageViewModel,
                     onSelectApp = { name, duration ->
                         selectedAppName = name
                         selectedAppDuration = duration
@@ -289,7 +341,6 @@ fun MainScreenContainer(
                     onNavigateToNotifications = { currentDestination = NavDestination.ProfileNotifications },
                     onNavigateToPrivacy = { currentDestination = NavDestination.ProfilePrivacy },
                     onNavigateToPreferences = { currentDestination = NavDestination.ProfilePreferences },
-                    onNavigateToSubscription = { currentDestination = NavDestination.ProfileSubscription },
                     onNavigateToSupport = { currentDestination = NavDestination.ProfileSupport },
                     onNavigateToAbout = { currentDestination = NavDestination.ProfileAbout },
                     onSignOut = { currentDestination = NavDestination.Login },
@@ -321,9 +372,6 @@ fun MainScreenContainer(
                     onBackClick = { currentDestination = NavDestination.Profile }
                 )
                 is NavDestination.ProfilePreferences -> ProfilePreferencesScreen(
-                    onBackClick = { currentDestination = NavDestination.Profile }
-                )
-                is NavDestination.ProfileSubscription -> SubscriptionScreen(
                     onBackClick = { currentDestination = NavDestination.Profile }
                 )
                 is NavDestination.ProfileSupport -> HelpSupportScreen(
@@ -376,6 +424,7 @@ fun MainScreenContainer(
                     onBackClick = { currentDestination = NavDestination.Settings }
                 )
                 is NavDestination.SettingsScreen -> ScreenSettingsScreen(
+                    viewModel = settingsViewModel,
                     onBackClick = { currentDestination = NavDestination.Settings }
                 )
                 is NavDestination.SettingsMonitoring -> MonitoringSettingsScreen(
@@ -386,10 +435,29 @@ fun MainScreenContainer(
                     onBackClick = { currentDestination = NavDestination.Settings }
                 )
                 is NavDestination.SettingsRemote -> RemoteSettingsScreen(
+                    viewModel = settingsViewModel,
                     onBackClick = { currentDestination = NavDestination.Settings }
                 )
                 is NavDestination.SettingsPrivacy -> PrivacySettingsScreen(
+                    viewModel = settingsViewModel,
+                    onPermissionManagerClick = { currentDestination = NavDestination.PrivacyPermissionManager },
+                    onDataCollectionClick = { currentDestination = NavDestination.PrivacyDataCollection },
+                    onUsageAccessClick = { currentDestination = NavDestination.PrivacyUsageAccess },
+                    onAccessibilitySettingsClick = { currentDestination = NavDestination.PrivacyAccessibility },
                     onBackClick = { currentDestination = NavDestination.Settings }
+                )
+                is NavDestination.PrivacyPermissionManager -> PermissionManagerScreen(
+                    onBackClick = { currentDestination = NavDestination.SettingsPrivacy }
+                )
+                is NavDestination.PrivacyDataCollection -> DataCollectionScreen(
+                    viewModel = settingsViewModel,
+                    onBackClick = { currentDestination = NavDestination.SettingsPrivacy }
+                )
+                is NavDestination.PrivacyUsageAccess -> UsageAccessScreen(
+                    onBackClick = { currentDestination = NavDestination.SettingsPrivacy }
+                )
+                is NavDestination.PrivacyAccessibility -> AccessibilitySettingsScreen(
+                    onBackClick = { currentDestination = NavDestination.SettingsPrivacy }
                 )
                 is NavDestination.SettingsReports -> ReportSettingsScreen(
                     onBackClick = { currentDestination = NavDestination.Settings }

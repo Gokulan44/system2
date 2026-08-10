@@ -1,6 +1,6 @@
 package com.systemmonitor.applock.model
 
-import com.systemmonitor.applock.database.LockSettingsEntity
+import com.systemmonitor.applock.data.entity.AppLockSettingsEntity
 
 data class LockSettings(
     val lockMethod: LockMethod = LockMethod.PIN,
@@ -12,16 +12,13 @@ data class LockSettings(
     val startAfterReboot: Boolean = true,
     val notificationsEnabled: Boolean = true
 ) {
-    fun toEntity(): LockSettingsEntity {
-        return LockSettingsEntity(
+    fun toEntity(): AppLockSettingsEntity {
+        return AppLockSettingsEntity(
             lockMethod = lockMethod.name,
-            autoLockDelay = when (lockTiming) {
-                LockTiming.IMMEDIATELY -> 0L
-                LockTiming.AFTER_30_SECONDS -> 30_000L
-                LockTiming.AFTER_1_MINUTE -> 60_000L
-                LockTiming.AFTER_SCREEN_OFF -> -1L
-            },
-            biometricEnabled = biometricEnabled
+            lockImmediately = lockTiming == LockTiming.IMMEDIATELY,
+            biometricEnabled = biometricEnabled,
+            lockOnScreenOff = lockOnScreenOff,
+            sessionTimeout = sessionTimeoutSeconds
         )
     }
 }

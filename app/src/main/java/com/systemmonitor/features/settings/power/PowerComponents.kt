@@ -41,7 +41,26 @@ fun BatterySettingsScreen(onBackClick: () -> Unit = {}) {
 
 @Singleton
 class PowerPolicyManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val settingsRepository: SettingsRepository
 ) {
-    fun applyPowerPolicy() {}
+    fun applyPowerPolicy(batteryPercent: Int, isCharging: Boolean): PowerPolicyResult {
+        val settings = settingsRepository.settingsFlow.value.power
+        if (!settings.batteryMonitoringEnabled) {
+            return PowerPolicyResult(isPowerSavingActive = false, triggerAlert = false)
+        }
+
+        val lowBattery = batteryPercent <= settings.batteryAlertThreshold && !isCharging
+        val activatePowerSaving = lowBattery && settings.powerSavingAutoActivate
+
+        return PowerPolicyResult(
+            isPowerSavingActive = activatePowerSaving,
+            triggerAlert = lowBattery
+        )
+    }
 }
+
+data class PowerPolicyResult(
+    val isPowerSavingActive: Boolean,
+    val triggerAlert: Boolean
+)

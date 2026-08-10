@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,16 +41,51 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.applock.manager.AppLockManager
+import com.systemmonitor.applock.security.IntrusionLogger
+import com.systemmonitor.applock.security.SecurityPolicy
+import kotlinx.coroutines.delay
 
 @Composable
 fun LockOverlayScreen(
     packageName: String,
     appName: String,
     appLockManager: AppLockManager,
+    securityPolicy: SecurityPolicy,
+    intrusionLogger: IntrusionLogger,
+    onBiometricAuthenticate: () -> Unit = {},
     onUnlockSuccess: () -> Unit
 ) {
     var enteredPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var failedAttempts by remember { mutableStateOf(0) }
+    var isLockedOut by remember { mutableStateOf(false) }
+    var lockoutRemainingSeconds by remember { mutableStateOf(0) }
+
+    fun onWrongPin() {
+        failedAttempts++
+        intrusionLogger.logFailedAttempt(packageName)
+        if (failedAttempts >= securityPolicy.maxFailedAttempts) {
+            isLockedOut = true
+            lockoutRemainingSeconds = (securityPolicy.lockoutDurationMs / 1000).toInt()
+            errorMessage = "Too many failed attempts. Locked for $lockoutRemainingSeconds seconds."
+        } else {
+            errorMessage = "Incorrect PIN. ${securityPolicy.maxFailedAttempts - failedAttempts} attempts remaining."
+        }
+    }
+
+    LaunchedEffect(isLockedOut) {
+        if (isLockedOut) {
+            var remaining = securityPolicy.lockoutDurationMs
+            while (remaining > 0) {
+                delay(1000)
+                remaining -= 1000
+                lockoutRemainingSeconds = (remaining / 1000).toInt()
+            }
+            isLockedOut = false
+            failedAttempts = 0
+            errorMessage = null
+        }
+    }
 
     val bgGradient = Brush.verticalGradient(
         colors = listOf(
@@ -152,11 +188,11 @@ fun LockOverlayScreen(
                                 when (key) {
                                     "DEL" -> if (enteredPin.isNotEmpty()) enteredPin = enteredPin.dropLast(1)
                                     "BIO" -> {
-                                        // Biometric bypass test
-                                        appLockManager.markSessionUnlocked(packageName)
-                                        onUnlockSuccess()
+                                        // Real biometric auth handled by the activity via BiometricPrompt
+                                        if (!isLockedOut) onBiometricAuthenticate()
                                     }
                                     else -> {
+                                        if (isLockedOut) return@KeypadButton
                                         if (enteredPin.length < 4) {
                                             enteredPin += key
                                             errorMessage = null
@@ -165,8 +201,8 @@ fun LockOverlayScreen(
                                                     appLockManager.markSessionUnlocked(packageName)
                                                     onUnlockSuccess()
                                                 } else {
-                                                    errorMessage = "Incorrect PIN code"
                                                     enteredPin = ""
+                                                    onWrongPin()
                                                 }
                                             }
                                         }
@@ -216,12 +252,15 @@ fun LockOverlayScreen(
                     confirmButton = {
                         Button(
                             onClick = {
-                                if (recoveryCode.trim() == "123456" || recoveryCode.length == 6) {
+                                // Real hashed recovery-code verification (was: any 6-digit code unlocked)
+                                if (!appLockManager.hasRecoveryCode()) {
+                                    recoveryError = "No recovery code has been set for this device."
+                                } else if (appLockManager.verifyRecoveryCode(recoveryCode.trim())) {
                                     showForgotPinDialog = false
                                     appLockManager.markSessionUnlocked(packageName)
                                     onUnlockSuccess()
                                 } else {
-                                    recoveryError = "Invalid 6-digit recovery code"
+                                    recoveryError = "Invalid recovery code"
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF))

@@ -8,6 +8,7 @@ import com.systemmonitor.repository.UserSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,7 +20,7 @@ class AuthViewModel @Inject constructor(
     val currentUser: StateFlow<UserSession?> = authRepository.currentUser
 
     private val _authState = MutableStateFlow<NetworkResult<UserSession>?>(null)
-    val authState: StateFlow<NetworkResult<UserSession>?> = _authState
+    val authState: StateFlow<NetworkResult<UserSession>?> = _authState.asStateFlow()
 
     fun login(email: String, pass: String) {
         viewModelScope.launch {

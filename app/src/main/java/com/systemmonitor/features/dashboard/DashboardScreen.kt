@@ -107,25 +107,26 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 2. Main Device Security Card
-                DeviceSecurityHeaderCard(state = state)
+                // 2. Main Device Security Card (SecurityScoreCard)
+                SecurityScoreCard(onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.SecurityCenter) })
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 3. Grid Metrics Summary (6 cards)
-                GridMetricsSection(state = state)
+                // 3. Grid Metrics Summary (Modularized cards + navigation)
+                GridMetricsSection(state = state, onNavigateTo = onNavigateTo)
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // 4. Real-time Monitoring Section (4 circular gauges)
-                RealtimeMonitoringSection(state = state)
+                // 4. Real-time Monitoring Section (DeviceStatusCard)
+                DeviceStatusCard(onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.DeviceCenter) })
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // 5. Security Scan & Recent Alerts
+                // 5. Security Scan & Recent Alerts (RecentAlertsCard)
                 ScanAndAlertsSection(
                     state = state,
-                    onScanClick = { viewModel.runScanNow() }
+                    onScanClick = { viewModel.runScanNow() },
+                    onNavigateTo = onNavigateTo
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -314,7 +315,10 @@ private fun DeviceSecurityHeaderCard(state: DashboardUiState) {
 }
 
 @Composable
-private fun GridMetricsSection(state: DashboardUiState) {
+private fun GridMetricsSection(
+    state: DashboardUiState,
+    onNavigateTo: (com.systemmonitor.navigation.NavDestination) -> Unit
+) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -326,7 +330,7 @@ private fun GridMetricsSection(state: DashboardUiState) {
                 iconColor = Color(0xFF10B981),
                 title = "Device Health",
                 value = "${state.deviceHealthPercent}%",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).clickable { onNavigateTo(com.systemmonitor.navigation.NavDestination.DeviceCenter) }
             )
             MetricCard(
                 icon = Icons.Default.GridView,
@@ -334,7 +338,7 @@ private fun GridMetricsSection(state: DashboardUiState) {
                 iconColor = Color(0xFF8B5CF6),
                 title = "Apps Checked",
                 value = String.format("%,d", if (state.appsCheckedCount > 0) state.appsCheckedCount else 1248),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).clickable { onNavigateTo(com.systemmonitor.navigation.NavDestination.SecurityCenter) }
             )
             MetricCard(
                 icon = Icons.Default.Warning,
@@ -342,7 +346,7 @@ private fun GridMetricsSection(state: DashboardUiState) {
                 iconColor = Color(0xFFEF4444),
                 title = "Threats",
                 value = "${state.threatsCount}",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).clickable { onNavigateTo(com.systemmonitor.navigation.NavDestination.SecurityCenter) }
             )
         }
 
@@ -352,29 +356,16 @@ private fun GridMetricsSection(state: DashboardUiState) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            MetricCard(
-                icon = Icons.Default.Wifi,
-                iconBg = Color(0xFF3B82F6).copy(alpha = 0.2f),
-                iconColor = Color(0xFF3B82F6),
-                title = "Network",
-                value = state.networkStatus,
-                valueColor = Color(0xFF10B981),
+            NetworkCard(
+                onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.NetworkCenter) },
                 modifier = Modifier.weight(1f)
             )
-            MetricCard(
-                icon = Icons.Default.BatteryChargingFull,
-                iconBg = Color(0xFFF59E0B).copy(alpha = 0.2f),
-                iconColor = Color(0xFFF59E0B),
-                title = "Battery",
-                value = "${state.batteryPercent}%",
+            BatteryCard(
+                onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.DeviceCenter) },
                 modifier = Modifier.weight(1f)
             )
-            MetricCard(
-                icon = Icons.Default.Storage,
-                iconBg = Color(0xFF06B6D4).copy(alpha = 0.2f),
-                iconColor = Color(0xFF06B6D4),
-                title = "Storage",
-                value = "${state.storagePercent}%",
+            StorageCard(
+                onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.FileCenter) },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -540,186 +531,137 @@ private fun RealtimeMonitoringSection(state: DashboardUiState) {
 @Composable
 private fun ScanAndAlertsSection(
     state: DashboardUiState,
-    onScanClick: () -> Unit
+    onScanClick: () -> Unit,
+    onNavigateTo: (com.systemmonitor.navigation.NavDestination) -> Unit
 ) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Security Scan Card
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(16.dp)),
+            shape = RoundedCornerShape(16.dp),
+            color = Color(0xFF0F172A).copy(alpha = 0.85f)
         ) {
-            // Security Scan Card
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0F172A).copy(alpha = 0.85f)
+            Column(
+                modifier = Modifier.padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF00E5FF).copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = Color(0xFF00E5FF),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Security Scan",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF00E5FF).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = Color(0xFF00E5FF),
+                                modifier = Modifier.size(14.dp)
                             )
                         }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = Color(0xFF64748B),
-                            modifier = Modifier.size(16.dp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Security Scan",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF00E676).copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (state.isScanning) {
-                            val infiniteTransition = rememberInfiniteTransition(label = "spin")
-                            val angle by infiniteTransition.animateFloat(
-                                initialValue = 0f,
-                                targetValue = 360f,
-                                animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing)),
-                                label = "rotate"
-                            )
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .rotate(angle),
-                                color = Color(0xFF00E676),
-                                strokeWidth = 3.dp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color(0xFF00E676),
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = if (state.isScanning) "Scanning installed apps..." else "Last Scan: ${state.lastScanTimeText}",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 11.sp
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = Color(0xFF64748B),
+                        modifier = Modifier.size(16.dp)
                     )
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                    Button(
-                        onClick = onScanClick,
-                        enabled = !state.isScanning,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF00E676),
-                            contentColor = Color(0xFF062817)
-                        ),
-                        shape = RoundedCornerShape(24.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (state.isScanning) "Scanning..." else "Scan Now",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF00E676).copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (state.isScanning) {
+                        val infiniteTransition = rememberInfiniteTransition(label = "spin")
+                        val angle by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 360f,
+                            animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing)),
+                            label = "rotate"
+                        )
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .rotate(angle),
+                            color = Color(0xFF00E676),
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color(0xFF00E676),
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 }
-            }
 
-            // Recent Alerts Card
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0F172A).copy(alpha = 0.85f)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFEF4444).copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = Color(0xFFEF4444),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Recent Alerts",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = if (state.isScanning) "Scanning apps..." else "Last Scan: ${state.lastScanTimeText}",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onScanClick,
+                    enabled = !state.isScanning,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00E676),
+                        contentColor = Color(0xFF062817)
+                    ),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            imageVector = Icons.Default.Security,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
                             modifier = Modifier.size(16.dp)
                         )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    state.alerts.take(3).forEach { alert ->
-                        AlertRowItem(alert = alert)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (state.isScanning) "Scanning..." else "Scan Now",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
                     }
                 }
             }
         }
+
+        // Recent Alerts Card
+        RecentAlertsCard(
+            onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.Alerts) },
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

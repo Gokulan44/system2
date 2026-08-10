@@ -14,10 +14,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ScreenViewModel @Inject constructor(
-    private val connectionManager: ConnectionManager
+    private val connectionManager: ConnectionManager,
+    private val wsClient: WebSocketClient
 ) : ViewModel() {
-
-    private val wsClient = WebSocketClient()
 
     val screenFrame: StateFlow<Bitmap?> = wsClient.screenFrameFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, null)

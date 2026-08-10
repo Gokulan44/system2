@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.applock.authentication.PasswordManager
+import kotlinx.coroutines.delay
 
 @Composable
 fun PasswordScreen(
@@ -29,6 +30,30 @@ fun PasswordScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    var lockoutSeconds by remember { mutableStateOf(0) }
+    var isLockedOut by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isLockedOut) {
+        val remainingMs = passwordManager.getLockoutTimeRemaining()
+        if (remainingMs > 0) {
+            isLockedOut = true
+            var seconds = (remainingMs / 1000).toInt().coerceAtLeast(1)
+            lockoutSeconds = seconds
+            errorMessage = "Too many failed attempts. Locked for $lockoutSeconds seconds."
+            while (seconds > 0) {
+                delay(1000)
+                seconds--
+                lockoutSeconds = seconds
+                if (seconds > 0) {
+                    errorMessage = "Too many failed attempts. Locked for $lockoutSeconds seconds."
+                } else {
+                    errorMessage = null
+                    isLockedOut = false
+                }
+            }
+        }
+    }
 
     val bgGradient = Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
@@ -44,6 +69,7 @@ fun PasswordScreen(
                     password = it
                     errorMessage = null
                 },
+                enabled = !isLockedOut,
                 label = { Text("Password", color = Color(0xFF94A3B8)) },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
@@ -75,13 +101,21 @@ fun PasswordScreen(
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = {
-                    val result = passwordManager.verifyPassword(password)
-                    if (result.isSuccessful()) {
-                        onPasswordSuccess()
-                    } else {
-                        errorMessage = result.getErrorMessage()
+                    when (val result = passwordManager.verifyPassword(password)) {
+                        is com.systemmonitor.applock.authentication.AuthenticationResult.Success -> {
+                            onPasswordSuccess()
+                        }
+                        is com.systemmonitor.applock.authentication.AuthenticationResult.Lockout -> {
+                            isLockedOut = true
+                            password = ""
+                        }
+                        else -> {
+                            errorMessage = result.getErrorMessage() ?: "Incorrect Password"
+                            password = ""
+                        }
                     }
                 },
+                enabled = !isLockedOut,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().height(50.dp)

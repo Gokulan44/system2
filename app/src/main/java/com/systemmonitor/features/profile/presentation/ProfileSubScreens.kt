@@ -106,39 +106,6 @@ fun ProfilePreferencesScreen(onBackClick: () -> Unit = {}) {
 }
 
 @Composable
-fun SubscriptionScreen(onBackClick: () -> Unit = {}) {
-    ProfileSubScreenBase("Enterprise Subscription Plan", onBackClick) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF00E5FF), RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0F172A).copy(alpha = 0.6f)
-            ) {
-                Column(modifier = Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("System Monitor Premium", color = Color(0xFF00E5FF), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("$4.99 / Month", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text("• Unlimited connected laptop sessions\n• Real-time remote screen broadcasting\n• Advanced 6-digit PIN app lock\n• Automatic background storage cleaning", color = Color(0xFF94A3B8), fontSize = 12.sp, lineHeight = 18.sp)
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Button(
-                        onClick = {},
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Subscribe Now", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun HelpSupportScreen(onBackClick: () -> Unit = {}) {
     ProfileSubScreenBase("Help & Technical Support", onBackClick) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

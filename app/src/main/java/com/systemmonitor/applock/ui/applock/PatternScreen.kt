@@ -20,15 +20,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.applock.authentication.PatternManager
+import kotlinx.coroutines.delay
+import com.systemmonitor.applock.security.IntrusionLogger
 
 @Composable
 fun PatternScreen(
     patternManager: PatternManager,
     onPatternSuccess: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    intrusionLogger: IntrusionLogger? = null,
+    packageName: String = ""
 ) {
     val selectedDots = remember { mutableStateListOf<Int>() }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    var lockoutSeconds by remember { mutableStateOf(0) }
+    var isLockedOut by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isLockedOut) {
+        val remainingMs = patternManager.getLockoutTimeRemaining()
+        if (remainingMs > 0) {
+            isLockedOut = true
+            var seconds = (remainingMs / 1000).toInt().coerceAtLeast(1)
+            lockoutSeconds = seconds
+            errorMessage = "Too many failed attempts. Locked for $lockoutSeconds seconds."
+            while (seconds > 0) {
+                delay(1000)
+                seconds--
+                lockoutSeconds = seconds
+                if (seconds > 0) {
+                    errorMessage = "Too many failed attempts. Locked for $lockoutSeconds seconds."
+                } else {
+                    errorMessage = null
+                    isLockedOut = false
+                }
+            }
+        }
+    }
 
     val bgGradient = Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
@@ -59,7 +87,7 @@ fun PatternScreen(
                                     .size(64.dp)
                                     .clip(CircleShape)
                                     .background(if (isSelected) Color(0xFF8B5CF6).copy(alpha = 0.25f) else Color(0xFF0F172A))
-                                    .clickable {
+                                    .clickable(enabled = !isLockedOut) {
                                         if (!selectedDots.contains(dotIndex)) {
                                             selectedDots.add(dotIndex)
                                             errorMessage = null
@@ -102,11 +130,20 @@ fun PatternScreen(
 
                 Button(
                     onClick = {
-                        val result = patternManager.verifyPattern(selectedDots.toList())
-                        if (result.isSuccessful()) {
-                            onPatternSuccess()
-                        } else {
-                            errorMessage = result.getErrorMessage()
+                        when (val result = patternManager.verifyPattern(selectedDots.toList())) {
+                            is com.systemmonitor.applock.authentication.AuthenticationResult.Success -> {
+                                onPatternSuccess()
+                            }
+                            is com.systemmonitor.applock.authentication.AuthenticationResult.Lockout -> {
+                                isLockedOut = true
+                                selectedDots.clear()
+                                intrusionLogger?.logFailedAttempt(packageName)
+                            }
+                            else -> {
+                                errorMessage = result.getErrorMessage() ?: "Incorrect Pattern"
+                                selectedDots.clear()
+                                intrusionLogger?.logFailedAttempt(packageName)
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6)),

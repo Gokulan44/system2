@@ -34,12 +34,6 @@ fun PowerSettingsScreen(
     val state by viewModel.uiState.collectAsState()
     val power = state.settings.power
 
-    var battMon by remember { mutableStateOf(power.batteryMonitoringEnabled) }
-    var pwrSave by remember { mutableStateOf(power.powerSavingAutoActivate) }
-    var sleepConfirm by remember { mutableStateOf(power.remoteSleepConfirmation) }
-    var restartConfirm by remember { mutableStateOf(power.remoteRestartConfirmation) }
-    var bgMon by remember { mutableStateOf(power.backgroundMonitoringScreenOff) }
-
     val bgGradient = Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
 
     Box(modifier = Modifier.fillMaxSize().background(bgGradient)) {
@@ -58,12 +52,47 @@ fun PowerSettingsScreen(
                 icon = Icons.Default.BatteryChargingFull,
                 title = "Continuous Battery Telemetry",
                 desc = "Track voltage, temperature & health metrics",
-                checked = battMon,
+                checked = power.batteryMonitoringEnabled,
                 onCheckedChange = {
-                    battMon = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(power = power.copy(batteryMonitoringEnabled = it))))
                 }
             )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp)),
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFF0F172A).copy(alpha = 0.85f)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Low Battery Alert Threshold", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("Trigger alert when battery level reaches this limit", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                        }
+                        Text("${power.batteryAlertThreshold}%", color = Color(0xFF10B981), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Slider(
+                        value = power.batteryAlertThreshold.toFloat(),
+                        onValueChange = {
+                            viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(power = power.copy(batteryAlertThreshold = it.toInt()))))
+                        },
+                        valueRange = 10f..50f,
+                        steps = 3,
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = Color(0xFF10B981),
+                            inactiveTrackColor = Color(0xFF1E293B),
+                            thumbColor = Color.White
+                        )
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -71,9 +100,8 @@ fun PowerSettingsScreen(
                 icon = Icons.Default.Power,
                 title = "Auto Activate Power Saver",
                 desc = "Reduce background telemetry when battery is low",
-                checked = pwrSave,
+                checked = power.powerSavingAutoActivate,
                 onCheckedChange = {
-                    pwrSave = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(power = power.copy(powerSavingAutoActivate = it))))
                 }
             )
@@ -84,9 +112,8 @@ fun PowerSettingsScreen(
                 icon = Icons.Default.Warning,
                 title = "Remote Action Confirmation",
                 desc = "Require dialog confirmation before Sleep / Shutdown",
-                checked = sleepConfirm,
+                checked = power.remoteSleepConfirmation,
                 onCheckedChange = {
-                    sleepConfirm = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(power = power.copy(remoteSleepConfirmation = it))))
                 }
             )
@@ -97,9 +124,8 @@ fun PowerSettingsScreen(
                 icon = Icons.Default.RestartAlt,
                 title = "Background Screen-Off Monitoring",
                 desc = "Keep monitoring active when screen is turned off",
-                checked = bgMon,
+                checked = power.backgroundMonitoringScreenOff,
                 onCheckedChange = {
-                    bgMon = it
                     viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(power = power.copy(backgroundMonitoringScreenOff = it))))
                 }
             )

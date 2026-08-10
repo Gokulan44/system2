@@ -1,77 +1,89 @@
 package com.systemmonitor.features.dashboard
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.systemmonitor.domain.model.Battery
 
 @Composable
 fun BatteryCard(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BatteryViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    Card(modifier = modifier.fillMaxWidth().padding(8.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = "Battery", style = MaterialTheme.typography.titleMedium)
+    Surface(
+        onClick = onClick,
+        modifier = modifier.border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.7f)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BatteryChargingFull,
+                        contentDescription = null,
+                        tint = Color(0xFFF59E0B),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
-            when (val current = state) {
-                is BatteryUiState.Loading -> CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
-                is BatteryUiState.Unavailable -> Text(
-                    text = "Battery data unavailable",
-                    style = MaterialTheme.typography.bodyMedium
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = Color(0xFF475569),
+                    modifier = Modifier.size(16.dp)
                 )
-                is BatteryUiState.Ready -> BatteryContent(current.battery)
             }
-        }
-    }
-}
 
-@Composable
-private fun BatteryContent(battery: Battery) {
-    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Text(text = "${battery.levelPercent}%", style = MaterialTheme.typography.headlineMedium)
-    }
-    LinearProgressIndicator(
-        progress = { battery.levelPercent / 100f },
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-    )
-    Text(
-        text = if (battery.isCharging) "Charging via ${battery.chargePlug}" else "Not charging",
-        style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.padding(top = 4.dp)
-    )
-    Text(
-        text = "${battery.temperatureCelsius}°C · ${battery.health}",
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(top = 2.dp)
-    )
-    if (battery.isCritical) {
-        Text(
-            text = "⚠ Critical battery level",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-    } else if (battery.isLow) {
-        Text(
-            text = "Battery is low",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Battery",
+                color = Color(0xFF94A3B8),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            val displayValue = when (val current = state) {
+                is BatteryUiState.Loading -> "..."
+                is BatteryUiState.Unavailable -> "N/A"
+                is BatteryUiState.Ready -> "${current.battery.levelPercent}%"
+            }
+
+            Text(
+                text = displayValue,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }

@@ -1,0 +1,136 @@
+warning: in the working copy of 'app/build.gradle.kts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/AndroidManifest.xml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/AppLockRepository.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/AppLockService.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/LockSessionManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/authentication/BiometricManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/authentication/PasswordManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/authentication/PatternManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/authentication/PinManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/data/repository/AppLockDataRepository.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/manager/AppLockManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/model/LockSettings.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/model/LockedApp.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/security/AntiTamperManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/security/CredentialStorage.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/security/SecurityPolicy.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/LockOverlayActivity.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/LockOverlayScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/SetPinScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/applock/AppLockDashboardScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/applock/BiometricScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/applock/PasswordScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/applock/PatternScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/applock/ui/applock/PinScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/data/network/ApiClient.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/data/network/ConnectionManager.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/data/network/WebSocketClient.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/di/DatabaseModule.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/domain/model/Laptop.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/dashboard/BatteryCard.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/dashboard/DashboardScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/dashboard/DashboardViewModel.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/dashboard/NetworkCard.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/dashboard/SecurityScoreCard.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/dashboard/StorageCard.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/devices/DeviceListScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/devices/PairLaptopScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/laptop/LaptopDetailsScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/laptop/ProcessesScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/profile/presentation/ProfileSubScreens.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/profile/presentation/profile/ProfileScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/security/presentation/result/ScanResultScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/security/presentation/scan/SecurityScanScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/CategorySubScreens.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/SettingsRepository.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/monitoring/MonitoringSettingsScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/notifications/NotificationSettingsScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/power/PowerComponents.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/power/PowerSettingsScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/privacy/PrivacyComponents.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/security/SecuritySettingsScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/settings/security/SecuritySubScreens.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/features/usage/AppUsageScreen.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/local/database/AppDatabase.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/local/database/DatabaseMigrations.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/local/database/dao/LaptopDao.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/local/database/entity/LaptopEntity.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/navigation/MainScreenContainer.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/navigation/NavDestination.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/repository/AuthRepository.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/repository/LaptopRepository.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/viewmodel/AuthViewModel.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/viewmodel/LaptopViewModel.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/main/java/com/systemmonitor/viewmodel/ScreenViewModel.kt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'gradle/libs.versions.toml', LF will be replaced by CRLF the next time Git touches it
+ app/build.gradle.kts                               |   2 [32m+[m
+ app/src/main/AndroidManifest.xml                   |  13 [32m+[m[31m-[m
+ .../com/systemmonitor/applock/AppLockRepository.kt |   6 [32m+[m[31m-[m
+ .../com/systemmonitor/applock/AppLockService.kt    |  35 [32m+[m
+ .../systemmonitor/applock/LockSessionManager.kt    |  28 [32m+[m[31m-[m
+ .../applock/authentication/BiometricManager.kt     |  11 [32m+[m[31m-[m
+ .../applock/authentication/PasswordManager.kt      |  48 [32m+[m[31m-[m
+ .../applock/authentication/PatternManager.kt       |  48 [32m+[m[31m-[m
+ .../applock/authentication/PinManager.kt           |  42 [32m+[m[31m-[m
+ .../data/repository/AppLockDataRepository.kt       |  36 [32m+[m[31m-[m
+ .../applock/manager/AppLockManager.kt              | 150 [32m+++[m[31m-[m
+ .../systemmonitor/applock/model/LockSettings.kt    |  19 [32m+[m[31m-[m
+ .../com/systemmonitor/applock/model/LockedApp.kt   |  10 [32m+[m[31m-[m
+ .../applock/security/AntiTamperManager.kt          |  19 [32m+[m
+ .../applock/security/CredentialStorage.kt          |  35 [32m+[m[31m-[m
+ .../applock/security/SecurityPolicy.kt             |  14 [32m+[m[31m-[m
+ .../applock/ui/LockOverlayActivity.kt              | 140 [32m+++[m[31m-[m
+ .../systemmonitor/applock/ui/LockOverlayScreen.kt  |  51 [32m+[m[31m-[m
+ .../systemmonitor/applock/ui/SelectAppsScreen.kt   | 179 [31m-----[m
+ .../com/systemmonitor/applock/ui/SetPinScreen.kt   | 390 [32m++++++++[m[31m--[m
+ .../applock/ui/applock/AppLockDashboardScreen.kt   | 126 [32m++[m[31m-[m
+ .../applock/ui/applock/BiometricScreen.kt          |   9 [32m+[m[31m-[m
+ .../applock/ui/applock/PasswordScreen.kt           |  44 [32m+[m[31m-[m
+ .../applock/ui/applock/PatternScreen.kt            |  51 [32m+[m[31m-[m
+ .../systemmonitor/applock/ui/applock/PinScreen.kt  |  55 [32m+[m[31m-[m
+ .../applock/ui/applock/ProtectedAppsSubScreens.kt  | 124 [31m---[m
+ .../com/systemmonitor/data/network/ApiClient.kt    | 116 [32m+[m[31m--[m
+ .../data/network/ConnectionManager.kt              |  57 [32m+[m[31m-[m
+ .../systemmonitor/data/network/WebSocketClient.kt  |  11 [32m+[m[31m-[m
+ .../java/com/systemmonitor/di/DatabaseModule.kt    |  18 [32m+[m[31m-[m
+ .../java/com/systemmonitor/domain/model/Laptop.kt  |   9 [32m+[m[31m-[m
+ .../systemmonitor/domain/model/LaptopTelemetry.kt  |  97 [31m---[m
+ .../features/dashboard/BatteryCard.kt              | 122 [32m+[m[31m--[m
+ .../features/dashboard/DashboardScreen.kt          | 318 [32m++++[m[31m----[m
+ .../features/dashboard/DashboardViewModel.kt       |   6 [32m+[m[31m-[m
+ .../features/dashboard/NetworkCard.kt              | 120 [32m+[m[31m--[m
+ .../features/dashboard/SecurityScoreCard.kt        | 171 [32m++++[m[31m-[m
+ .../features/dashboard/StorageCard.kt              | 100 [32m++[m[31m-[m
+ .../features/devices/DeviceListScreen.kt           |  80 [32m+[m[31m-[m
+ .../features/devices/PairLaptopScreen.kt           |  64 [32m+[m[31m-[m
+ .../features/laptop/LaptopDetailsScreen.kt         |  92 [32m++[m[31m-[m
+ .../features/laptop/ProcessesScreen.kt             | 112 [32m++[m[31m-[m
+ .../features/network/NetworkCenterScreen.kt        | 848 [31m---------------------[m
+ .../features/network/NetworkDetailsScreen.kt       | 227 [31m------[m
+ .../profile/presentation/ProfileSubScreens.kt      |  33 [31m-[m
+ .../profile/presentation/profile/ProfileScreen.kt  |   3 [31m-[m
+ .../presentation/result/ScanResultScreen.kt        |  27 [32m+[m[31m-[m
+ .../presentation/scan/SecurityScanScreen.kt        |  92 [32m+[m[31m--[m
+ .../features/settings/CategorySubScreens.kt        |  90 [32m++[m[31m-[m
+ .../features/settings/SettingsRepository.kt        | 217 [32m+++++[m[31m-[m
+ .../monitoring/MonitoringSettingsScreen.kt         | 112 [32m++[m[31m-[m
+ .../notifications/NotificationSettingsScreen.kt    |  22 [32m+[m[31m-[m
+ .../features/settings/power/PowerComponents.kt     |  23 [32m+[m[31m-[m
+ .../features/settings/power/PowerSettingsScreen.kt |  54 [32m+[m[31m-[m
+ .../features/settings/privacy/PrivacyComponents.kt | 301 [32m+++++++[m[31m-[m
+ .../settings/security/SecuritySettingsScreen.kt    |  22 [32m+[m[31m-[m
+ .../settings/security/SecuritySubScreens.kt        | 280 [32m++++++[m[31m-[m
+ .../systemmonitor/features/usage/AppUsageScreen.kt | 377 [32m+++++[m[31m----[m
+ .../systemmonitor/local/database/AppDatabase.kt    |   2 [32m+[m[31m-[m
+ .../local/database/DatabaseMigrations.kt           |  13 [32m+[m[31m-[m
+ .../systemmonitor/local/database/dao/LaptopDao.kt  |   4 [32m+[m
+ .../local/database/entity/LaptopEntity.kt          |   5 [32m+[m[31m-[m
+ .../navigation/MainScreenContainer.kt              | 102 [32m++[m[31m-[m
+ .../com/systemmonitor/navigation/NavDestination.kt |  10 [32m+[m[31m-[m
+ .../com/systemmonitor/repository/AuthRepository.kt |  40 [32m+[m[31m-[m
+ .../systemmonitor/repository/LaptopRepository.kt   |  26 [32m+[m[31m-[m
+ .../com/systemmonitor/viewmodel/AuthViewModel.kt   |   3 [32m+[m[31m-[m
+ .../com/systemmonitor/viewmodel/LaptopViewModel.kt | 127 [32m++[m[31m-[m
+ .../com/systemmonitor/viewmodel/ScreenViewModel.kt |   5 [32m+[m[31m-[m
+ gradle/libs.versions.toml                          |   2 [32m+[m
+ 70 files changed, 3556 insertions(+), 2689 deletions(-)

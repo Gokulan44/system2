@@ -93,7 +93,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private fun refreshMetrics() {
+    private suspend fun refreshMetrics() {
         val battery = batteryMonitor.readCurrent()
         val battPct = battery?.levelPercent ?: 78
 
@@ -173,8 +173,8 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private fun readCpuUsagePercent(): Int {
-        return try {
+    private suspend fun readCpuUsagePercent(): Int = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
             val reader = RandomAccessFile("/proc/stat", "r")
             var line = reader.readLine()
             reader.close()
