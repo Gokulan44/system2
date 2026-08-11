@@ -40,6 +40,13 @@ fun PowerControls(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             PowerControlButton(
+                title = "Turn ON",
+                icon = Icons.Default.PowerSettingsNew,
+                color = Color(0xFF10B981),
+                onClick = { onCommandSelect(CommandType.ON) },
+                modifier = Modifier.weight(1f)
+            )
+            PowerControlButton(
                 title = "Lock",
                 icon = Icons.Default.Lock,
                 color = Color(0xFF3B82F6),
@@ -53,6 +60,14 @@ fun PowerControls(
                 onClick = { onCommandSelect(CommandType.SLEEP) },
                 modifier = Modifier.weight(1f)
             )
+        }
+        
+        Spacer(modifier = Modifier.height(10.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             PowerControlButton(
                 title = "Restart",
                 icon = Icons.Default.RestartAlt,
@@ -67,6 +82,8 @@ fun PowerControls(
                 onClick = { onCommandSelect(CommandType.SHUTDOWN) },
                 modifier = Modifier.weight(1f)
             )
+            // Invisible placeholder item to align layout columns
+            Box(modifier = Modifier.weight(1f).height(75.dp))
         }
     }
 }

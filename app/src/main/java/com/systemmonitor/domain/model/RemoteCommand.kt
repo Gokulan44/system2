@@ -4,7 +4,8 @@ enum class CommandType {
     LOCK,
     SLEEP,
     RESTART,
-    SHUTDOWN
+    SHUTDOWN,
+    ON
 }
 
 data class RemoteCommand(

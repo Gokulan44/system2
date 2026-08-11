@@ -54,7 +54,8 @@ class ApiClient @Inject constructor(
                         success = true,
                         token = obj.optString("access_token"),
                         message = obj.optString("message", "Paired"),
-                        deviceId = obj.optString("device_id")
+                        deviceId = obj.optString("device_id"),
+                        macAddress = obj.optString("mac_address").takeIf { it.isNotEmpty() }
                     )
                 )
             } else {
@@ -131,5 +132,6 @@ data class PairingResponse(
     val success: Boolean,
     val token: String?,
     val message: String,
-    val deviceId: String? = null
+    val deviceId: String? = null,
+    val macAddress: String? = null
 )

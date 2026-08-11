@@ -6,6 +6,7 @@ import com.systemmonitor.data.network.NetworkResult
 import com.systemmonitor.domain.model.CommandType
 import com.systemmonitor.domain.model.ConnectionMode
 import com.systemmonitor.domain.model.Laptop
+import com.systemmonitor.domain.model.LaptopStatus
 import com.systemmonitor.domain.model.UsageInfo
 import com.systemmonitor.repository.CommandRepository
 import com.systemmonitor.repository.LaptopRepository
@@ -43,19 +44,53 @@ class LaptopViewModel @Inject constructor(
     // --- Polling ---
 
     fun startTelemetryPolling() {
-        val laptop = _selectedLaptop.value ?: return
-        val intervalMs = if (laptop.connectionMode == ConnectionMode.LOCAL) 3_000L else 10_000L
         telemetryJob?.cancel()
         telemetryJob = viewModelScope.launch {
+            var failoverCheckCounter = 0
             while (true) {
-                val result = laptopRepository.fetchTelemetry(laptop)
+                val currentLaptop = _selectedLaptop.value ?: break
+                val result = laptopRepository.fetchTelemetry(currentLaptop)
                 _telemetryState.value = result
-                // Auto-detect: if LOCAL fails, suggest switching to REMOTE
-                if (result is NetworkResult.Error && laptop.connectionMode == ConnectionMode.LOCAL) {
-                    _connectionModeSuggestion.value = ConnectionMode.REMOTE
-                } else if (result is NetworkResult.Success) {
+
+                if (result is NetworkResult.Success) {
                     _connectionModeSuggestion.value = null
+                    if (currentLaptop.status != LaptopStatus.ONLINE) {
+                        laptopRepository.updateLaptopStatus(currentLaptop.id, LaptopStatus.ONLINE)
+                        _selectedLaptop.value = currentLaptop.copy(status = LaptopStatus.ONLINE)
+                    }
+                } else if (result is NetworkResult.Error) {
+                    if (currentLaptop.connectionMode == ConnectionMode.LOCAL) {
+                        val remoteStatus = laptopRepository.checkStatusForLaptop(currentLaptop.copy(connectionMode = ConnectionMode.REMOTE))
+                        if (remoteStatus is NetworkResult.Success && remoteStatus.data) {
+                            laptopRepository.updateLaptopStatusAndMode(currentLaptop.id, LaptopStatus.ONLINE, ConnectionMode.REMOTE)
+                            _selectedLaptop.value = currentLaptop.copy(connectionMode = ConnectionMode.REMOTE, status = LaptopStatus.ONLINE)
+                            _connectionModeSuggestion.value = null
+                            continue
+                        } else {
+                            laptopRepository.updateLaptopStatus(currentLaptop.id, LaptopStatus.OFFLINE)
+                            _selectedLaptop.value = currentLaptop.copy(status = LaptopStatus.OFFLINE)
+                            _connectionModeSuggestion.value = ConnectionMode.REMOTE
+                        }
+                    } else {
+                        laptopRepository.updateLaptopStatus(currentLaptop.id, LaptopStatus.OFFLINE)
+                        _selectedLaptop.value = currentLaptop.copy(status = LaptopStatus.OFFLINE)
+                    }
                 }
+
+                if (currentLaptop.connectionMode == ConnectionMode.REMOTE) {
+                    failoverCheckCounter++
+                    if (failoverCheckCounter >= 5) {
+                        failoverCheckCounter = 0
+                        val localStatus = laptopRepository.checkStatusForLaptop(currentLaptop.copy(connectionMode = ConnectionMode.LOCAL))
+                        if (localStatus is NetworkResult.Success && localStatus.data) {
+                            laptopRepository.updateLaptopStatusAndMode(currentLaptop.id, LaptopStatus.ONLINE, ConnectionMode.LOCAL)
+                            _selectedLaptop.value = currentLaptop.copy(connectionMode = ConnectionMode.LOCAL, status = LaptopStatus.ONLINE)
+                            continue
+                        }
+                    }
+                }
+
+                val intervalMs = if (_selectedLaptop.value?.connectionMode == ConnectionMode.LOCAL) 3_000L else 10_000L
                 kotlinx.coroutines.delay(intervalMs)
             }
         }
@@ -67,12 +102,12 @@ class LaptopViewModel @Inject constructor(
     }
 
     fun startProcessesPolling() {
-        val laptop = _selectedLaptop.value ?: return
-        val intervalMs = if (laptop.connectionMode == ConnectionMode.LOCAL) 5_000L else 15_000L
         processesJob?.cancel()
         processesJob = viewModelScope.launch {
             while (true) {
+                val laptop = _selectedLaptop.value ?: break
                 _processesState.value = laptopRepository.fetchProcesses(laptop)
+                val intervalMs = if (laptop.connectionMode == ConnectionMode.LOCAL) 5_000L else 15_000L
                 kotlinx.coroutines.delay(intervalMs)
             }
         }
@@ -81,6 +116,16 @@ class LaptopViewModel @Inject constructor(
     fun stopProcessesPolling() {
         processesJob?.cancel()
         processesJob = null
+    }
+
+    fun unpairLaptop(laptopId: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            laptopRepository.deleteLaptop(laptopId)
+            if (_selectedLaptop.value?.id == laptopId) {
+                _selectedLaptop.value = null
+            }
+            onComplete()
+        }
     }
 
     // --- Connection mode switching ---

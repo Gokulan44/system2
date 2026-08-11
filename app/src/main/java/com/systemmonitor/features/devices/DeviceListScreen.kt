@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.domain.model.ConnectionMode
 import com.systemmonitor.domain.model.Laptop
+import com.systemmonitor.domain.model.LaptopStatus
 import com.systemmonitor.viewmodel.LaptopViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -173,6 +175,27 @@ private fun LaptopCard(laptop: Laptop, onClick: () -> Unit) {
                             Icon(modeIcon, contentDescription = null, tint = modeColor, modifier = Modifier.size(10.dp))
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(modeLabel, color = modeColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    // Status badge
+                    val isOnline = laptop.status == LaptopStatus.ONLINE
+                    val statusColor = if (isOnline) Color(0xFF10B981) else Color(0xFF64748B)
+                    val statusText = if (isOnline) "Online" else "Offline"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(statusColor.copy(alpha = 0.15f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(statusColor, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(statusText, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

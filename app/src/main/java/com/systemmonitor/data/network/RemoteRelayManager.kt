@@ -210,7 +210,8 @@ class RemoteRelayManager @Inject constructor(
                             success = true,
                             token = "remote_token_$deviceId",
                             message = "Paired with $deviceName remotely",
-                            deviceId = deviceId
+                            deviceId = deviceId,
+                            macAddress = snap.getString("macAddress")
                         )
                     )
                 }

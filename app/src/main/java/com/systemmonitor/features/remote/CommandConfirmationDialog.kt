@@ -51,54 +51,60 @@ fun CommandConfirmationDialog(
         text = {
             Column {
                 Text(
-                    text = "Are you sure you want to execute ${commandType.name} on the connected laptop? This action may interrupt active tasks.",
+                    text = if (commandType == CommandType.ON) {
+                        "Are you sure you want to turn ON the connected laptop? This will broadcast a Wake-on-LAN magic packet over your local network to start the laptop."
+                    } else {
+                        "Are you sure you want to execute ${commandType.name} on the connected laptop? This action may interrupt active tasks."
+                    },
                     color = Color(0xFF94A3B8),
                     fontSize = 14.sp
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                if (commandType != CommandType.ON) {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = {
-                        pin = it
-                        pinError = false
-                    },
-                    label = { Text("Security PIN (Default: 1234)", color = Color(0xFF94A3B8)) },
-                    singleLine = true,
-                    isError = pinError,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "PIN", tint = Color(0xFF00E5FF)) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF00E5FF),
-                        unfocusedBorderColor = Color(0xFF475569)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (pinError) {
-                    Text(
-                        text = "Please enter security PIN",
-                        color = Color.Red,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 4.dp)
+                    OutlinedTextField(
+                        value = pin,
+                        onValueChange = {
+                            pin = it
+                            pinError = false
+                        },
+                        label = { Text("Security PIN (Default: 1234)", color = Color(0xFF94A3B8)) },
+                        singleLine = true,
+                        isError = pinError,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "PIN", tint = Color(0xFF00E5FF)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF00E5FF),
+                            unfocusedBorderColor = Color(0xFF475569)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     )
+                    if (pinError) {
+                        Text(
+                            text = "Please enter security PIN",
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    if (pin.isBlank()) {
+                    if (commandType != CommandType.ON && pin.isBlank()) {
                         pinError = true
                     } else {
-                        onConfirm(pin)
+                        onConfirm(if (commandType == CommandType.ON) null else pin)
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                colors = ButtonDefaults.buttonColors(containerColor = if (commandType == CommandType.ON) Color(0xFF10B981) else Color(0xFFEF4444))
             ) {
-                Text("Execute", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(if (commandType == CommandType.ON) "Turn ON" else "Execute", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

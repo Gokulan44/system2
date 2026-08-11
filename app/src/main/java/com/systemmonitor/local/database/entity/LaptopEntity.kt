@@ -16,5 +16,6 @@ data class LaptopEntity(
     val accessToken: String?,
     val lastSeen: Long,
     @ColumnInfo(name = "connectionMode", defaultValue = "LOCAL")
-    val connectionMode: String = "LOCAL"
+    val connectionMode: String = "LOCAL",
+    val macAddress: String? = null
 )

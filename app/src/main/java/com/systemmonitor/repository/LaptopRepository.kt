@@ -44,7 +44,8 @@ class LaptopRepository @Inject constructor(
                     isLocalConnection = connectionMode == ConnectionMode.LOCAL,
                     connectionMode = connectionMode,
                     accessToken = res.data.token,
-                    lastSeen = System.currentTimeMillis()
+                    lastSeen = System.currentTimeMillis(),
+                    macAddress = res.data.macAddress
                 )
                 laptopDao.insertLaptop(newLaptop.toEntity())
                 NetworkResult.Success(newLaptop)
@@ -78,6 +79,27 @@ class LaptopRepository @Inject constructor(
         laptopDao.deleteLaptopById(laptopId)
     }
 
+    suspend fun getAllLaptopsList(): List<Laptop> {
+        return laptopDao.getAllLaptopsList().map { it.toDomain() }
+    }
+
+    suspend fun updateLaptopStatusAndMode(laptopId: String, status: LaptopStatus, mode: ConnectionMode) {
+        val entity = laptopDao.getLaptopById(laptopId) ?: return
+        laptopDao.insertLaptop(entity.copy(
+            status = status.name,
+            connectionMode = mode.name,
+            lastSeen = System.currentTimeMillis()
+        ))
+    }
+
+    suspend fun updateLaptopStatus(laptopId: String, status: LaptopStatus) {
+        val entity = laptopDao.getLaptopById(laptopId) ?: return
+        laptopDao.insertLaptop(entity.copy(
+            status = status.name,
+            lastSeen = System.currentTimeMillis()
+        ))
+    }
+
     private fun LaptopEntity.toDomain() = Laptop(
         id = id,
         name = name,
@@ -89,7 +111,8 @@ class LaptopRepository @Inject constructor(
         connectionMode = runCatching { ConnectionMode.valueOf(connectionMode) }
             .getOrDefault(ConnectionMode.LOCAL),
         accessToken = accessToken,
-        lastSeen = lastSeen
+        lastSeen = lastSeen,
+        macAddress = macAddress
     )
 
     private fun Laptop.toEntity() = LaptopEntity(
@@ -102,6 +125,7 @@ class LaptopRepository @Inject constructor(
         isLocalConnection = isLocalConnection,
         connectionMode = connectionMode.name,
         accessToken = accessToken,
-        lastSeen = lastSeen
+        lastSeen = lastSeen,
+        macAddress = macAddress
     )
 }

@@ -22,8 +22,12 @@ import androidx.compose.ui.unit.sp
 import com.systemmonitor.data.network.NetworkResult
 import com.systemmonitor.domain.model.ConnectionMode
 import com.systemmonitor.domain.model.Laptop
+import com.systemmonitor.domain.model.LaptopStatus
 import com.systemmonitor.viewmodel.LaptopViewModel
-
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +44,7 @@ fun LaptopDetailsScreen(
     val selectedLaptop by laptopViewModel.selectedLaptop.collectAsState()
     val telemetryState by laptopViewModel.telemetryState.collectAsState()
     val modeSuggestion by laptopViewModel.connectionModeSuggestion.collectAsState()
+    var showUnpairDialog by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         laptopViewModel.startTelemetryPolling()
@@ -99,7 +104,25 @@ fun LaptopDetailsScreen(
                     Icon(modeIcon, contentDescription = null, tint = modeColor, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(modeLabel, color = modeColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(modeLabel, color = modeColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val isOnline = laptop.status == LaptopStatus.ONLINE
+                            val statusColor = if (isOnline) Color(0xFF10B981) else Color(0xFF64748B)
+                            val statusText = if (isOnline) "Online" else "Offline"
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(statusColor.copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.size(5.dp).background(statusColor, CircleShape))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(statusText, color = statusColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
                         if (isLocal) Text("Direct: ${laptop.ipAddress}:${laptop.port}", color = Color(0xFF94A3B8), fontSize = 11.sp)
                         else Text("Relay via Firebase Firestore", color = Color(0xFF94A3B8), fontSize = 11.sp)
                     }
@@ -201,6 +224,46 @@ fun LaptopDetailsScreen(
                     TelemetryDetailCard("Battery Status", "${u.battery.percent}%", u.battery.status, Color(0xFF10B981))
                     TelemetryDetailCard("Network IO", "Online", "Host: ${u.network.hostname} (${u.network.primaryIp})", Color(0xFF8B5CF6), onNavigateToNetwork)
                 }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = { showUnpairDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Unpair Device", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+
+            if (showUnpairDialog) {
+                AlertDialog(
+                    onDismissRequest = { showUnpairDialog = false },
+                    containerColor = Color(0xFF0F172A),
+                    title = { Text("Unpair Laptop", color = Color.White, fontWeight = FontWeight.Bold) },
+                    text = { Text("Are you sure you want to unpair '${laptop.name}'? This will delete the connection settings.", color = Color(0xFF94A3B8), fontSize = 13.sp) },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showUnpairDialog = false
+                                laptopViewModel.unpairLaptop(laptop.id) {
+                                    onBackClick()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                        ) {
+                            Text("Unpair", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showUnpairDialog = false }) {
+                            Text("Cancel", color = Color(0xFF94A3B8))
+                        }
+                    }
+                )
             }
         }
     }
