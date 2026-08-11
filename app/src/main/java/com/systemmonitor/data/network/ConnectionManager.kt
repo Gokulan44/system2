@@ -39,9 +39,13 @@ class ConnectionManager @Inject constructor(
         port: Int,
         pairingCode: String,
         deviceName: String,
-        deviceId: String
+        deviceId: String,
+        connectionMode: ConnectionMode
     ): NetworkResult<PairingResponse> {
-        return apiClient.verifyPairing("http://$ipAddress:$port", pairingCode, deviceName, deviceId)
+        return when (connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.verifyPairing("http://$ipAddress:$port", pairingCode, deviceName, deviceId)
+            ConnectionMode.REMOTE -> remoteRelay.verifyRemotePairing(pairingCode)
+        }
     }
 
     suspend fun fetchTelemetry(laptop: Laptop): NetworkResult<UsageInfo> {

@@ -31,11 +31,12 @@ class LaptopRepository @Inject constructor(
         deviceId: String,
         connectionMode: ConnectionMode = ConnectionMode.LOCAL
     ): NetworkResult<Laptop> {
-        val res = connectionManager.verifyPairing(ipAddress, port, pairingCode, deviceName, deviceId)
+        val res = connectionManager.verifyPairing(ipAddress, port, pairingCode, deviceName, deviceId, connectionMode)
         return when (res) {
             is NetworkResult.Success -> {
+                val finalDeviceId = res.data.deviceId ?: deviceId
                 val newLaptop = Laptop(
-                    id = deviceId,
+                    id = finalDeviceId,
                     name = deviceName,
                     ipAddress = ipAddress,
                     port = port,

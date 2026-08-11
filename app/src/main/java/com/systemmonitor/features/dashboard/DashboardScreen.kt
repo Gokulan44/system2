@@ -814,11 +814,31 @@ private fun QuickAccessSection(
                     onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.NetworkCenter) },
                     modifier = Modifier.weight(1f)
                 )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 QuickAccessItem(
                     icon = Icons.Default.Folder,
                     label = "File Center",
                     bgColor = Color(0xFFD97706),
                     onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.FileCenter) },
+                    modifier = Modifier.weight(1f)
+                )
+                QuickAccessItem(
+                    icon = Icons.Default.Monitor,
+                    label = "My Laptops",
+                    bgColor = Color(0xFF8B5CF6),
+                    onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.Laptops) },
+                    modifier = Modifier.weight(1f)
+                )
+                QuickAccessItem(
+                    icon = Icons.Default.Notifications,
+                    label = "Alerts",
+                    bgColor = Color(0xFFEF4444),
+                    onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.Alerts) },
                     modifier = Modifier.weight(1f)
                 )
             }

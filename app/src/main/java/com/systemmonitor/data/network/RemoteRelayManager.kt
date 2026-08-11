@@ -184,6 +184,44 @@ class RemoteRelayManager @Inject constructor(
         }
     }
 
+    /**
+     * Look up the pairing code in Firestore to retrieve the remote device details.
+     */
+    suspend fun verifyRemotePairing(pairingCode: String): NetworkResult<PairingResponse> {
+        return try {
+            val snap = firestore.collection("pairing").document(pairingCode).get().await()
+            if (snap.exists()) {
+                val deviceId = snap.getString("deviceId")
+                val deviceName = snap.getString("deviceName") ?: "Remote Laptop"
+                val createdAt = snap.getLong("createdAt") ?: 0L
+                val age = System.currentTimeMillis() - createdAt
+                if (deviceId.isNullOrEmpty()) {
+                    NetworkResult.Error("Pairing document exists but deviceId is missing.")
+                } else if (age > 300_000L) {
+                    NetworkResult.Error("Pairing code has expired.")
+                } else {
+                    try {
+                        firestore.collection("pairing").document(pairingCode).delete().await()
+                    } catch (e: Exception) {
+                        // Ignore deletion error
+                    }
+                    NetworkResult.Success(
+                        PairingResponse(
+                            success = true,
+                            token = "remote_token_$deviceId",
+                            message = "Paired with $deviceName remotely",
+                            deviceId = deviceId
+                        )
+                    )
+                }
+            } else {
+                NetworkResult.Error("Invalid pairing code. Make sure the Windows Agent is running and connected to the internet.")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Remote pairing error", e)
+        }
+    }
+
     // --- Parsers ---
 
     private fun parseTelemetryJson(json: String): UsageInfo? {

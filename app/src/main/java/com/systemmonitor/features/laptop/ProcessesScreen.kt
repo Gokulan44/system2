@@ -30,18 +30,18 @@ import androidx.compose.runtime.DisposableEffect
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProcessesScreen(
-    onBackClick: () -> Unit,
-    viewModel: LaptopViewModel = hiltViewModel()
+    laptopViewModel: LaptopViewModel,
+    onBackClick: () -> Unit
 ) {
-    val processesState by viewModel.processesState.collectAsState()
-
+    val processesState by laptopViewModel.processesState.collectAsState()
+ 
     DisposableEffect(Unit) {
-        viewModel.startProcessesPolling()
+        laptopViewModel.startProcessesPolling()
         onDispose {
-            viewModel.stopProcessesPolling()
+            laptopViewModel.stopProcessesPolling()
         }
     }
-
+ 
     Scaffold(
         topBar = {
             TopAppBar(
@@ -52,7 +52,7 @@ fun ProcessesScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.refreshProcesses() }) {
+                    IconButton(onClick = { laptopViewModel.refreshProcesses() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.White)
                     }
                 },
@@ -83,7 +83,7 @@ fun ProcessesScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
-                                onClick = { viewModel.refreshProcesses() },
+                                onClick = { laptopViewModel.refreshProcesses() },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
                             ) {
                                 Text("Retry", color = Color.White)

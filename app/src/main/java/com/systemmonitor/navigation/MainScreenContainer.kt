@@ -193,7 +193,7 @@ fun MainScreenContainer(
                 is NavDestination.AddLaptop -> AddLaptopScreen(
                     laptopViewModel = laptopViewModel,
                     onStatusOnline = { currentDestination = NavDestination.PairLaptop },
-                    onBackClick = { currentDestination = NavDestination.DeviceCenter }
+                    onBackClick = { currentDestination = NavDestination.Laptops }
                 )
                 is NavDestination.PairLaptop -> PairLaptopScreen(
                     laptopViewModel = laptopViewModel,
@@ -207,7 +207,7 @@ fun MainScreenContainer(
                     onNavigateToProcesses = { currentDestination = NavDestination.Processes },
                     onNavigateToUsage = { currentDestination = NavDestination.LaptopUsage },
                     onNavigateToNetwork = { currentDestination = NavDestination.LaptopNetwork },
-                    onBackClick = { currentDestination = NavDestination.DeviceCenter }
+                    onBackClick = { currentDestination = NavDestination.Laptops }
                 )
                 is NavDestination.LaptopUsage -> LaptopUsageScreen(
                     laptopViewModel = laptopViewModel,
@@ -227,6 +227,7 @@ fun MainScreenContainer(
                     onBackClick = { currentDestination = NavDestination.LaptopDetails }
                 )
                 is NavDestination.Processes -> ProcessesScreen(
+                    laptopViewModel = laptopViewModel,
                     onBackClick = { currentDestination = NavDestination.LaptopDetails }
                 )
                 is NavDestination.SecurityCenter -> SecurityDashboardScreen(
@@ -358,7 +359,7 @@ fun MainScreenContainer(
                 is NavDestination.Profile -> ProfileScreen(
                     onNavigateToEditProfile = { currentDestination = NavDestination.EditProfile },
                     onNavigateToSecurity = { currentDestination = NavDestination.ProfileSecurity },
-                    onNavigateToDevices = { currentDestination = NavDestination.ProfileDevices },
+                    onNavigateToDevices = { currentDestination = NavDestination.Laptops },
                     onNavigateToLoginHistory = { currentDestination = NavDestination.ProfileLoginHistory },
                     onNavigateToActivityHistory = { currentDestination = NavDestination.ProfileActivityHistory },
                     onNavigateToNotifications = { currentDestination = NavDestination.ProfileNotifications },
