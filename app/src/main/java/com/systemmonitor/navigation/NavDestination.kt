@@ -17,6 +17,7 @@ sealed class NavDestination(val route: String) {
     object SecurityReport : NavDestination("security_report")
     object DeviceInfo : NavDestination("device_info")
     object Laptops : NavDestination("laptops")
+    object LaptopNotFound : NavDestination("laptop_not_found")
     object NetworkCenter : NavDestination("network_center")
     object FileCenter : NavDestination("file_center")
     object AppLock : NavDestination("app_lock")
@@ -66,4 +67,9 @@ sealed class NavDestination(val route: String) {
     object PrivacyDataCollection : NavDestination("privacy_data_collection")
     object PrivacyUsageAccess : NavDestination("privacy_usage_access")
     object PrivacyAccessibility : NavDestination("privacy_accessibility")
+    object DeviceUnlock : NavDestination("device_unlock")
+    object ResourcePermission : NavDestination("resource_permission")
+    object PermissionHistory : NavDestination("permission_history")
+    object ResourceCenter : NavDestination("resource_center")
+    object DownloadStatus : NavDestination("download_status")
 }

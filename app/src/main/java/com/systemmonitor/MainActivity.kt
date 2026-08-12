@@ -1,7 +1,7 @@
 package com.systemmonitor
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -18,16 +18,21 @@ import com.systemmonitor.navigation.MainScreenContainer
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+import android.content.Intent
+
 val LocalDarkMode = staticCompositionLocalOf { true }
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var appLockManager: AppLockManager
 
+    private var initialRoute: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        initialRoute = intent?.getStringExtra("EXTRA_NAVIGATE_TO")
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val state by settingsViewModel.uiState.collectAsState()
@@ -39,9 +44,19 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = surfaceColor
                 ) {
-                    MainScreenContainer(appLockManager = appLockManager)
+                    MainScreenContainer(appLockManager = appLockManager, initialRoute = initialRoute)
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val navigateTo = intent.getStringExtra("EXTRA_NAVIGATE_TO")
+        if (navigateTo != null) {
+            initialRoute = navigateTo
+            recreate() // Simple restart to apply new navigation route
         }
     }
 }

@@ -39,6 +39,9 @@ fun LaptopDetailsScreen(
     onNavigateToProcesses: () -> Unit,
     onNavigateToUsage: () -> Unit,
     onNavigateToNetwork: () -> Unit,
+    onNavigateToUnlock: () -> Unit,
+    onNavigateToResources: () -> Unit,
+    onNavigateToPermissions: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val selectedLaptop by laptopViewModel.selectedLaptop.collectAsState()
@@ -86,6 +89,48 @@ fun LaptopDetailsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // ── Real-time Status Card ──────────────────────────────────
+            val isOnline = laptop.status == LaptopStatus.ONLINE
+            val bannerBg = if (isOnline) Color(0xFF10B981).copy(alpha = 0.12f) else Color(0xFFEF4444).copy(alpha = 0.12f)
+            val bannerBorder = if (isOnline) Color(0xFF10B981) else Color(0xFFEF4444)
+            val bannerText = if (isOnline) "Device Status: ONLINE" else "Device Status: OFFLINE"
+            val bannerIcon = if (isOnline) Icons.Default.CheckCircle else Icons.Default.ErrorOutline
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = bannerBg,
+                border = androidx.compose.foundation.BorderStroke(1.dp, bannerBorder.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = bannerIcon,
+                        contentDescription = null,
+                        tint = bannerBorder,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = bannerText,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isOnline) "Receiving live telemetry data" else "No connection to laptop. Verify agent status.",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
             // ── Connection mode banner ──────────────────────────────────
             val isLocal = laptop.connectionMode == ConnectionMode.LOCAL
             val modeColor = if (isLocal) Color(0xFF00E5FF) else Color(0xFF8B5CF6)
@@ -195,6 +240,34 @@ fun LaptopDetailsScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickNavTile(
+                    title = "Device Unlock",
+                    icon = Icons.Default.LockOpen,
+                    color = Color(0xFF8B5CF6),
+                    onClick = onNavigateToUnlock,
+                    modifier = Modifier.weight(1f)
+                )
+                QuickNavTile(
+                    title = "Files Catalog",
+                    icon = Icons.Default.Folder,
+                    color = Color(0xFFEC4899),
+                    onClick = onNavigateToResources,
+                    modifier = Modifier.weight(1f)
+                )
+                QuickNavTile(
+                    title = "Permissions",
+                    icon = Icons.Default.Security,
+                    color = Color(0xFF10B981),
+                    onClick = onNavigateToPermissions,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             Text("Live System Telemetry", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -236,15 +309,15 @@ fun LaptopDetailsScreen(
             ) {
                 Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Unpair Device", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Unpair & Disconnect", color = Color.White, fontWeight = FontWeight.Bold)
             }
 
             if (showUnpairDialog) {
                 AlertDialog(
                     onDismissRequest = { showUnpairDialog = false },
                     containerColor = Color(0xFF0F172A),
-                    title = { Text("Unpair Laptop", color = Color.White, fontWeight = FontWeight.Bold) },
-                    text = { Text("Are you sure you want to unpair '${laptop.name}'? This will delete the connection settings.", color = Color(0xFF94A3B8), fontSize = 13.sp) },
+                    title = { Text("Unpair & Disconnect Laptop", color = Color.White, fontWeight = FontWeight.Bold) },
+                    text = { Text("Are you sure you want to unpair and disconnect '${laptop.name}'? This will permanently remove the device from monitoring.", color = Color(0xFF94A3B8), fontSize = 13.sp) },
                     confirmButton = {
                         Button(
                             onClick = {

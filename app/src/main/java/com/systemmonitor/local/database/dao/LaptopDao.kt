@@ -30,10 +30,14 @@ interface LaptopDao {
     @Query("DELETE FROM laptops WHERE id = :id")
     suspend fun deleteLaptopById(id: String)
 
-    @Query("SELECT * FROM laptops")
-    suspend fun getAllLaptopsList(): List<LaptopEntity>
-
     @Query("UPDATE laptops SET connectionMode = :mode WHERE id = :laptopId")
     suspend fun updateConnectionMode(laptopId: String, mode: String)
+
+    @Query("SELECT * FROM laptops ORDER BY lastSeen DESC")
+    suspend fun getAllLaptopsList(): List<LaptopEntity>
+
+    @Query("UPDATE laptops SET status = :status, lastSeen = :lastSeen WHERE id = :laptopId")
+    suspend fun updateLaptopStatus(laptopId: String, status: String, lastSeen: Long)
 }
+
 

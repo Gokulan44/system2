@@ -1,0 +1,23 @@
+package com.systemmonitor.features.notifications
+
+import com.systemmonitor.features.remotepermission.domain.model.PermissionRequest
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class NotificationManager @Inject constructor(
+    private val requestNotification: PermissionRequestNotification,
+    private val resultNotification: DownloadResultNotification
+) {
+    fun sendPermissionRequestNotification(request: PermissionRequest) {
+        requestNotification.showNotification(request)
+    }
+
+    fun sendDownloadSuccessNotification(requestId: String, filename: String, sizeMbText: String, sha256: String) {
+        resultNotification.showSafeNotification(requestId, filename, sizeMbText, sha256)
+    }
+
+    fun sendDownloadQuarantinedNotification(requestId: String, filename: String, reason: String) {
+        resultNotification.showQuarantinedNotification(requestId, filename, reason)
+    }
+}

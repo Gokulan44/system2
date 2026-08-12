@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,6 +28,21 @@ class LaptopViewModel @Inject constructor(
 
     private val _selectedLaptop = MutableStateFlow<Laptop?>(null)
     val selectedLaptop: StateFlow<Laptop?> = _selectedLaptop.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            laptops.collect { list ->
+                val current = _selectedLaptop.value
+                if (current != null) {
+                    val updated = list.find { it.id == current.id }
+                    if (updated != null && updated != current) {
+                        _selectedLaptop.value = updated
+                    }
+                }
+            }
+        }
+    }
+
 
     private val _telemetryState = MutableStateFlow<NetworkResult<UsageInfo>>(NetworkResult.Loading)
     val telemetryState: StateFlow<NetworkResult<UsageInfo>> = _telemetryState.asStateFlow()
@@ -161,21 +177,20 @@ class LaptopViewModel @Inject constructor(
     var pendingDeviceName = ""
 
     fun checkLaptopStatus(ipAddress: String, port: Int, deviceName: String) {
+        pendingIpAddress = ipAddress
+        pendingPort = port
+        pendingDeviceName = deviceName
         viewModelScope.launch {
             _statusState.value = NetworkResult.Loading
             val res = laptopRepository.checkStatus(ipAddress, port)
             _statusState.value = res
-            if (res is NetworkResult.Success) {
-                pendingIpAddress = ipAddress
-                pendingPort = port
-                pendingDeviceName = deviceName
-            }
         }
     }
 
     fun clearStatusState() {
         _statusState.value = null
     }
+
 
     // --- Command / Processes ---
 
@@ -185,10 +200,28 @@ class LaptopViewModel @Inject constructor(
     private val _processesState = MutableStateFlow<NetworkResult<List<com.systemmonitor.domain.model.ProcessInfo>>>(NetworkResult.Loading)
     val processesState: StateFlow<NetworkResult<List<com.systemmonitor.domain.model.ProcessInfo>>> = _processesState.asStateFlow()
 
+    private val _unlockState = MutableStateFlow<NetworkResult<Boolean>?>(null)
+    val unlockState: StateFlow<NetworkResult<Boolean>?> = _unlockState.asStateFlow()
+
+    private val _unlockHistory = MutableStateFlow<List<com.systemmonitor.local.database.entity.UnlockHistoryEntity>>(emptyList())
+    val unlockHistory: StateFlow<List<com.systemmonitor.local.database.entity.UnlockHistoryEntity>> = _unlockHistory.asStateFlow()
+
+    private var historyJob: kotlinx.coroutines.Job? = null
+
+    private fun loadUnlockHistory(laptopId: String) {
+        historyJob?.cancel()
+        historyJob = viewModelScope.launch {
+            laptopRepository.getUnlockHistory(laptopId).collect {
+                _unlockHistory.value = it
+            }
+        }
+    }
+
     fun selectLaptop(laptop: Laptop) {
         _selectedLaptop.value = laptop
         refreshTelemetry()
         refreshProcesses()
+        loadUnlockHistory(laptop.id)
     }
 
     fun refreshTelemetry() {
@@ -241,5 +274,74 @@ class LaptopViewModel @Inject constructor(
 
     fun clearCommandResult() {
         _commandResult.value = null
+    }
+
+    fun clearUnlockState() {
+        _unlockState.value = null
+    }
+
+    fun getPublicKeyBase64(laptopId: String): String {
+        return com.systemmonitor.features.unlock.CryptoManager.getPublicKeyBase64(laptopId)
+    }
+
+    fun initSignature(laptopId: String): java.security.Signature {
+        return com.systemmonitor.features.unlock.CryptoManager.initSignature(laptopId)
+    }
+
+    fun fetchUnlockChallenge(laptop: Laptop, onSuccess: (String) -> Unit) {
+        viewModelScope.launch {
+            _unlockState.value = NetworkResult.Loading
+            val res = laptopRepository.getUnlockChallenge(laptop)
+            if (res is NetworkResult.Success) {
+                onSuccess(res.data)
+            } else {
+                val errMsg = (res as? NetworkResult.Error)?.message ?: "Failed to get challenge"
+                _unlockState.value = NetworkResult.Error(errMsg)
+                laptopRepository.logUnlockAttempt(laptop.id, "UNKNOWN", "FAILED", errMsg)
+            }
+        }
+    }
+
+    fun unlockLaptopWithSignature(laptop: Laptop, signatureInstance: java.security.Signature, challenge: String, method: String) {
+        viewModelScope.launch {
+            _unlockState.value = NetworkResult.Loading
+            try {
+                val signatureBase64 = com.systemmonitor.features.unlock.CryptoManager.signChallenge(signatureInstance, challenge)
+                val publicKeyBase64 = com.systemmonitor.features.unlock.CryptoManager.getPublicKeyBase64(laptop.id)
+                val res = laptopRepository.submitUnlockSignature(laptop, challenge, signatureBase64, publicKeyBase64)
+                if (res is NetworkResult.Success && res.data) {
+                    _unlockState.value = NetworkResult.Success(true)
+                    laptopRepository.logUnlockAttempt(laptop.id, method, "SUCCESS")
+                } else {
+                    val errMsg = (res as? NetworkResult.Error)?.message ?: "Verification rejected by Laptop"
+                    _unlockState.value = NetworkResult.Error(errMsg)
+                    laptopRepository.logUnlockAttempt(laptop.id, method, "FAILED", errMsg)
+                }
+            } catch (e: Exception) {
+                _unlockState.value = NetworkResult.Error(e.message ?: "Signing error")
+                laptopRepository.logUnlockAttempt(laptop.id, method, "FAILED", e.message)
+            }
+        }
+    }
+
+    fun unlockLaptopWithPIN(laptop: Laptop, pin: String) {
+        viewModelScope.launch {
+            _unlockState.value = NetworkResult.Loading
+            val challengeRes = laptopRepository.getUnlockChallenge(laptop)
+            if (challengeRes is NetworkResult.Success) {
+                val challenge = challengeRes.data
+                val dummySignature = android.util.Base64.encodeToString(pin.toByteArray(), android.util.Base64.NO_WRAP)
+                val res = laptopRepository.submitUnlockSignature(laptop, challenge, dummySignature, "PIN_VERIFIED")
+                if (res is NetworkResult.Success) {
+                    _unlockState.value = NetworkResult.Success(true)
+                    laptopRepository.logUnlockAttempt(laptop.id, "PIN", "SUCCESS")
+                } else {
+                    _unlockState.value = NetworkResult.Error("PIN verification rejected by laptop")
+                    laptopRepository.logUnlockAttempt(laptop.id, "PIN", "FAILED", "Incorrect PIN signature")
+                }
+            } else {
+                _unlockState.value = NetworkResult.Error("Failed to fetch challenge")
+            }
+        }
     }
 }

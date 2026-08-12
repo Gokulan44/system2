@@ -25,6 +25,10 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 import com.systemmonitor.local.database.dao.LaptopDao
+import com.systemmonitor.features.remotepermission.data.RemotePermissionDatabase
+import com.systemmonitor.features.remotepermission.data.dao.PermissionRequestDao
+import com.systemmonitor.features.remotepermission.data.dao.PermissionHistoryDao
+import com.systemmonitor.features.remotepermission.data.dao.ResourceRequestDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -58,6 +62,9 @@ object DatabaseModule {
 
     @Provides
     fun provideLaptopDao(db: AppDatabase): LaptopDao = db.laptopDao()
+
+    @Provides
+    fun provideUnlockHistoryDao(db: AppDatabase): com.systemmonitor.local.database.dao.UnlockHistoryDao = db.unlockHistoryDao()
 
     @Provides
     @Singleton
@@ -113,4 +120,20 @@ object DatabaseModule {
 
     @Provides
     fun provideNotificationPreferenceDao(db: com.systemmonitor.features.profile.data.ProfileDatabase): com.systemmonitor.features.profile.data.dao.NotificationPreferenceDao = db.notificationPreferenceDao()
+
+    @Provides
+    @Singleton
+    fun provideRemotePermissionDatabase(@ApplicationContext context: Context): RemotePermissionDatabase =
+        Room.databaseBuilder(context, RemotePermissionDatabase::class.java, "remote_permission.db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
+    fun providePermissionRequestDao(db: RemotePermissionDatabase): PermissionRequestDao = db.permissionRequestDao()
+
+    @Provides
+    fun providePermissionHistoryDao(db: RemotePermissionDatabase): PermissionHistoryDao = db.permissionHistoryDao()
+
+    @Provides
+    fun provideResourceRequestDao(db: RemotePermissionDatabase): ResourceRequestDao = db.resourceRequestDao()
 }

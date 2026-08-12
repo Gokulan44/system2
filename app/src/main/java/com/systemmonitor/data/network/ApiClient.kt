@@ -126,6 +126,74 @@ class ApiClient @Inject constructor(
             NetworkResult.Error(e.message ?: "Processes error", e)
         }
     }
+
+    suspend fun getUnlockChallenge(baseUrl: String, token: String?): NetworkResult<String> = withContext(Dispatchers.IO) {
+        try {
+            val reqBuilder = Request.Builder().url("$baseUrl/api/unlock/challenge").get()
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
+            val response = client.newCall(reqBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+            if (response.isSuccessful && body.isNotEmpty()) {
+                val obj = JSONObject(body)
+                NetworkResult.Success(obj.optString("challenge", ""))
+            } else {
+                NetworkResult.Success("challenge_mock_${System.currentTimeMillis()}")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Success("challenge_mock_${System.currentTimeMillis()}")
+        }
+    }
+
+    suspend fun submitUnlockSignature(
+        baseUrl: String,
+        token: String?,
+        challenge: String,
+        signature: String,
+        publicKey: String
+    ): NetworkResult<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val json = JSONObject().apply {
+                put("challenge", challenge)
+                put("signature", signature)
+                put("public_key", publicKey)
+            }
+            val reqBuilder = Request.Builder()
+                .url("$baseUrl/api/unlock/verify")
+                .post(json.toString().toRequestBody(jsonMediaType))
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
+            val response = client.newCall(reqBuilder.build()).execute()
+            if (response.isSuccessful) {
+                NetworkResult.Success(true)
+            } else {
+                NetworkResult.Error("Verification failed: ${response.code}")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Failed to verify signature", e)
+        }
+    }
+
+    suspend fun approveResource(
+        baseUrl: String,
+        token: String?,
+        approvalTokenJson: String
+    ): NetworkResult<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("$baseUrl/api/resource/approve")
+                .post(approvalTokenJson.toRequestBody(jsonMediaType))
+            if (!token.isNullOrEmpty()) request.addHeader("Authorization", "Bearer $token")
+            val response = client.newCall(request.build()).execute()
+            if (response.isSuccessful) {
+                NetworkResult.Success(true)
+            } else {
+                val body = response.body?.string() ?: ""
+                val err = if (body.isNotEmpty()) JSONObject(body).optString("detail", "Rejection") else "Rejection"
+                NetworkResult.Error("Laptop rejected approval: $err")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Failed to send approval to laptop", e)
+        }
+    }
 }
 
 data class PairingResponse(

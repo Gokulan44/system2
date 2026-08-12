@@ -223,6 +223,26 @@ class RemoteRelayManager @Inject constructor(
         }
     }
 
+    suspend fun approveResourceRemote(deviceId: String, approvalTokenJson: String): NetworkResult<Boolean> {
+        return try {
+            val tokenObj = JSONObject(approvalTokenJson)
+            val requestId = tokenObj.getString("requestId")
+            val deviceRef = firestore.collection(RELAY_COLLECTION).document(deviceId)
+            
+            deviceRef.collection(RESULTS_COLLECTION).document(requestId).set(
+                mapOf(
+                    "type" to "APPROVAL_TOKEN",
+                    "tokenJson" to approvalTokenJson,
+                    "completedAt" to System.currentTimeMillis()
+                )
+            ).await()
+            
+            NetworkResult.Success(true)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Failed to write approval to Firestore")
+        }
+    }
+
     // --- Parsers ---
 
     private fun parseTelemetryJson(json: String): UsageInfo? {

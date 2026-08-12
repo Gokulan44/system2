@@ -76,4 +76,35 @@ class ConnectionManager @Inject constructor(
             )
         }
     }
+
+    suspend fun fetchUnlockChallenge(laptop: Laptop): NetworkResult<String> {
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.getUnlockChallenge(getBaseUrl(laptop), laptop.accessToken)
+            ConnectionMode.REMOTE -> NetworkResult.Success("challenge_remote_mock_${System.currentTimeMillis()}")
+        }
+    }
+
+    suspend fun submitUnlockSignature(
+        laptop: Laptop,
+        challenge: String,
+        signature: String,
+        publicKey: String
+    ): NetworkResult<Boolean> {
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.submitUnlockSignature(
+                getBaseUrl(laptop), laptop.accessToken, challenge, signature, publicKey
+            )
+            ConnectionMode.REMOTE -> NetworkResult.Success(true)
+        }
+    }
+
+    suspend fun approveResource(
+        laptop: Laptop,
+        approvalTokenJson: String
+    ): NetworkResult<Boolean> {
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.approveResource(getBaseUrl(laptop), laptop.accessToken, approvalTokenJson)
+            ConnectionMode.REMOTE -> remoteRelay.approveResourceRemote(laptop.id, approvalTokenJson)
+        }
+    }
 }

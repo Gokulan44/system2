@@ -11,15 +11,55 @@ import com.systemmonitor.local.database.dao.LaptopDao
 import com.systemmonitor.local.database.entity.LaptopEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class LaptopRepository @Inject constructor(
     private val laptopDao: LaptopDao,
-    private val connectionManager: ConnectionManager
+    private val connectionManager: ConnectionManager,
+    private val unlockHistoryDao: com.systemmonitor.local.database.dao.UnlockHistoryDao,
+    private val permissionRequestManager: com.systemmonitor.features.remotepermission.request.PermissionRequestManager
 ) {
+    private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    init {
+        startAutomaticConnectionWatcher()
+    }
+
+    private fun startAutomaticConnectionWatcher() {
+        repositoryScope.launch {
+            while (true) {
+                try {
+                    val laptopsList = laptopDao.getAllLaptopsList().map { it.toDomain() }
+                    permissionRequestManager.startWatching(laptopsList)
+
+                    for (laptop in laptopsList) {
+                        val checkResult = connectionManager.checkStatus(laptop)
+                        val newStatus = if (checkResult is NetworkResult.Success && checkResult.data) {
+                            LaptopStatus.ONLINE
+                        } else {
+                            LaptopStatus.OFFLINE
+                        }
+                        if (laptop.status != newStatus) {
+                            laptopDao.updateLaptopStatus(laptop.id, newStatus.name, System.currentTimeMillis())
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Prevent watcher thread crash on exceptions
+                }
+                delay(10_000L)
+            }
+        }
+    }
+
     val allLaptops: Flow<List<Laptop>> = laptopDao.getAllLaptops().map { entities ->
+
         entities.map { it.toDomain() }
     }
 
@@ -128,4 +168,32 @@ class LaptopRepository @Inject constructor(
         lastSeen = lastSeen,
         macAddress = macAddress
     )
+
+    suspend fun getUnlockChallenge(laptop: Laptop): NetworkResult<String> {
+        return connectionManager.fetchUnlockChallenge(laptop)
+    }
+
+    suspend fun submitUnlockSignature(
+        laptop: Laptop,
+        challenge: String,
+        signature: String,
+        publicKey: String
+    ): NetworkResult<Boolean> {
+        return connectionManager.submitUnlockSignature(laptop, challenge, signature, publicKey)
+    }
+
+    suspend fun logUnlockAttempt(laptopId: String, method: String, result: String, reason: String? = null) {
+        val entity = com.systemmonitor.local.database.entity.UnlockHistoryEntity(
+            laptopId = laptopId,
+            timestamp = System.currentTimeMillis(),
+            result = result,
+            method = method,
+            reason = reason
+        )
+        unlockHistoryDao.insert(entity)
+    }
+
+    fun getUnlockHistory(laptopId: String): Flow<List<com.systemmonitor.local.database.entity.UnlockHistoryEntity>> {
+        return unlockHistoryDao.getHistoryForLaptop(laptopId)
+    }
 }

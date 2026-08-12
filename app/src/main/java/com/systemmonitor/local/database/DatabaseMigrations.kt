@@ -25,5 +25,14 @@ object DatabaseMigrations {
         }
     }
 
-    val ALL = arrayOf<Migration>(MIGRATION_3_4)
+    /** v5 → v6: adds unlock_history table */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `unlock_history` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `laptopId` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `result` TEXT NOT NULL, `method` TEXT NOT NULL, `reason` TEXT)"
+            )
+        }
+    }
+
+    val ALL = arrayOf<Migration>(MIGRATION_3_4, MIGRATION_5_6)
 }

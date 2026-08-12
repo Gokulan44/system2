@@ -41,6 +41,7 @@ import com.systemmonitor.viewmodel.LaptopViewModel
 fun AddLaptopScreen(
     laptopViewModel: LaptopViewModel,
     onStatusOnline: () -> Unit,
+    onStatusError: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -66,6 +67,7 @@ fun AddLaptopScreen(
             is NetworkResult.Error -> {
                 Toast.makeText(context, "Connection Failed: ${res.message}", Toast.LENGTH_LONG).show()
                 laptopViewModel.clearStatusState()
+                onStatusError()
             }
             else -> {}
         }

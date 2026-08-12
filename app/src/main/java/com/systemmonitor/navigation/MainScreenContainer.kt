@@ -18,6 +18,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,7 +44,15 @@ import com.systemmonitor.features.device.DeviceInfoScreen
 import com.systemmonitor.features.devices.DeviceListScreen
 import com.systemmonitor.features.devices.PairLaptopScreen
 import com.systemmonitor.features.devices.AddLaptopScreen
+import com.systemmonitor.features.devices.LaptopNotFoundScreen
+import com.systemmonitor.features.unlock.DeviceUnlockScreen
 import com.systemmonitor.features.files.FileCenterScreen
+import com.systemmonitor.features.remotepermission.presentation.ResourcePermissionScreen
+import com.systemmonitor.features.remotepermission.presentation.PermissionHistoryScreen
+import com.systemmonitor.features.remotepermission.presentation.PermissionViewModel
+import com.systemmonitor.features.resources.ResourceCenterScreen
+import com.systemmonitor.features.resources.DownloadStatusScreen
+import com.systemmonitor.features.resources.ResourceViewModel
 import com.systemmonitor.features.laptop.LaptopDetailsScreen
 import com.systemmonitor.features.laptop.ProcessesScreen
 import com.systemmonitor.features.laptop.LaptopUsageScreen
@@ -80,6 +89,7 @@ import com.systemmonitor.features.wellbeing.DigitalWellbeingScreen
 import com.systemmonitor.viewmodel.AuthViewModel
 import com.systemmonitor.viewmodel.LaptopViewModel
 import com.systemmonitor.viewmodel.ScreenViewModel
+import com.systemmonitor.domain.model.ConnectionMode
 
 import com.systemmonitor.features.settings.AboutScreen
 import com.systemmonitor.features.settings.AdvancedSettingsScreen
@@ -109,11 +119,23 @@ fun MainScreenContainer(
     screenViewModel: ScreenViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     appUsageViewModel: AppUsageViewModel = hiltViewModel(),
-    appLockSettingsViewModel: AppLockSettingsViewModel = hiltViewModel()
+    appLockSettingsViewModel: AppLockSettingsViewModel = hiltViewModel(),
+    permissionViewModel: PermissionViewModel = hiltViewModel(),
+    resourceViewModel: ResourceViewModel = hiltViewModel(),
+    initialRoute: String? = null
 ) {
     var currentDestination by remember { mutableStateOf<NavDestination>(NavDestination.Home) }
     var lastScanResult by remember { mutableStateOf<SecurityScan?>(null) }
     var selectedThreat by remember { mutableStateOf<com.systemmonitor.features.security.domain.model.ThreatInfo?>(null) }
+    var simulatedResourceName by remember { mutableStateOf("") }
+
+    LaunchedEffect(initialRoute) {
+        if (initialRoute == "resource_permission") {
+            currentDestination = NavDestination.ResourcePermission
+        } else if (initialRoute == "resource_center") {
+            currentDestination = NavDestination.ResourceCenter
+        }
+    }
 
     var userName by remember { mutableStateOf("Admin") }
     var userEmail by remember { mutableStateOf("admin@systemmonitor.com") }
@@ -193,6 +215,7 @@ fun MainScreenContainer(
                 is NavDestination.AddLaptop -> AddLaptopScreen(
                     laptopViewModel = laptopViewModel,
                     onStatusOnline = { currentDestination = NavDestination.PairLaptop },
+                    onStatusError = { currentDestination = NavDestination.LaptopNotFound },
                     onBackClick = { currentDestination = NavDestination.Laptops }
                 )
                 is NavDestination.PairLaptop -> PairLaptopScreen(
@@ -200,14 +223,54 @@ fun MainScreenContainer(
                     onPairSuccess = { currentDestination = NavDestination.LaptopDetails },
                     onBackClick = { currentDestination = NavDestination.AddLaptop }
                 )
-                is NavDestination.LaptopDetails -> LaptopDetailsScreen(
+                is NavDestination.LaptopNotFound -> LaptopNotFoundScreen(
+                    laptopViewModel = laptopViewModel,
+                    onTryAgain = { currentDestination = NavDestination.AddLaptop },
+                    onSwitchToRemote = {
+                        laptopViewModel.pendingConnectionMode = ConnectionMode.REMOTE
+                        currentDestination = NavDestination.PairLaptop
+                    },
+                    onBackClick = { currentDestination = NavDestination.Laptops }
+                )
+                 is NavDestination.LaptopDetails -> LaptopDetailsScreen(
                     laptopViewModel = laptopViewModel,
                     onNavigateToRemote = { currentDestination = NavDestination.RemoteControl },
                     onNavigateToStream = { currentDestination = NavDestination.ScreenViewer },
                     onNavigateToProcesses = { currentDestination = NavDestination.Processes },
                     onNavigateToUsage = { currentDestination = NavDestination.LaptopUsage },
                     onNavigateToNetwork = { currentDestination = NavDestination.LaptopNetwork },
+                    onNavigateToUnlock = { currentDestination = NavDestination.DeviceUnlock },
+                    onNavigateToResources = { currentDestination = NavDestination.ResourceCenter },
+                    onNavigateToPermissions = { currentDestination = NavDestination.ResourcePermission },
                     onBackClick = { currentDestination = NavDestination.Laptops }
+                )
+                is NavDestination.DeviceUnlock -> DeviceUnlockScreen(
+                    laptopViewModel = laptopViewModel,
+                    onBackClick = { currentDestination = NavDestination.LaptopDetails }
+                )
+                is NavDestination.ResourcePermission -> ResourcePermissionScreen(
+                    viewModel = permissionViewModel,
+                    onNavigateBack = { currentDestination = NavDestination.LaptopDetails },
+                    onNavigateToHistory = { currentDestination = NavDestination.PermissionHistory }
+                )
+                is NavDestination.PermissionHistory -> PermissionHistoryScreen(
+                    viewModel = permissionViewModel,
+                    onBackClick = { currentDestination = NavDestination.ResourcePermission }
+                )
+                is NavDestination.ResourceCenter -> ResourceCenterScreen(
+                    resourceViewModel = resourceViewModel,
+                    permissionViewModel = permissionViewModel,
+                    laptopViewModel = laptopViewModel,
+                    onBackClick = { currentDestination = NavDestination.LaptopDetails },
+                    onNavigateToStatus = { filename ->
+                        simulatedResourceName = filename
+                        currentDestination = NavDestination.DownloadStatus
+                    }
+                )
+                is NavDestination.DownloadStatus -> DownloadStatusScreen(
+                    resourceViewModel = resourceViewModel,
+                    resourceName = simulatedResourceName,
+                    onBackClick = { currentDestination = NavDestination.ResourceCenter }
                 )
                 is NavDestination.LaptopUsage -> LaptopUsageScreen(
                     laptopViewModel = laptopViewModel,
