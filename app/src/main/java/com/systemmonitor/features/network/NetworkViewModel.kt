@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import javax.inject.Inject
@@ -180,8 +184,64 @@ class NetworkViewModel @Inject constructor(
     fun startSubnetScan() {
         viewModelScope.launch {
             _uiState.update { it.copy(isScanningDevices = true) }
-            delay(1500) // Simulated scan delay
-            _uiState.update { it.copy(isScanningDevices = false) }
+            
+            val localIp = _uiState.value.localIp
+            if (localIp == "127.0.0.1" || localIp == "0.0.0.0") {
+                _uiState.update { it.copy(isScanningDevices = false) }
+                return@launch
+            }
+            
+            val prefix = localIp.substringBeforeLast(".") + "."
+            val discovered = mutableListOf<ConnectedDeviceItem>()
+            
+            // Add gateway
+            val gatewayIp = _uiState.value.gatewayIp
+            discovered.add(ConnectedDeviceItem("Gateway / Router", gatewayIp, "Router Interface", "Router", isGateway = true))
+            
+            // Add self
+            discovered.add(ConnectedDeviceItem("This Android Device", localIp, "Local Interface", "Mobile Device"))
+            
+            val activeDevices = withContext(Dispatchers.IO) {
+                (1..254).map { host ->
+                    async {
+                        val ip = prefix + host
+                        if (ip != localIp && ip != gatewayIp) {
+                            try {
+                                val addr = java.net.InetAddress.getByName(ip)
+                                if (addr.isReachable(150)) {
+                                    val hostname = addr.hostName
+                                    val name = if (hostname != ip) hostname else "Active Host"
+                                    ConnectedDeviceItem(name, ip, "Active", "Network Device")
+                                } else {
+                                    null
+                                }
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                    }
+                }.awaitAll().filterNotNull()
+            }
+            
+            discovered.addAll(activeDevices)
+            
+            val newLogs = _uiState.value.eventLogs.toMutableList()
+            newLogs.add(0, NetworkEventItem(
+                timestamp = "Just Now",
+                event = "Subnet Scan Completed",
+                detail = "Discovered ${discovered.size} active network hosts",
+                type = EventType.SUCCESS
+            ))
+            
+            _uiState.update {
+                it.copy(
+                    isScanningDevices = false,
+                    connectedDevices = discovered,
+                    eventLogs = newLogs
+                )
+            }
         }
     }
 

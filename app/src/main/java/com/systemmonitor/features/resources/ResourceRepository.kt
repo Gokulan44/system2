@@ -1,5 +1,6 @@
 package com.systemmonitor.features.resources
 
+import com.systemmonitor.data.network.ConnectionManager
 import com.systemmonitor.data.network.NetworkResult
 import com.systemmonitor.domain.model.Laptop
 import com.systemmonitor.features.remotepermission.data.entity.DownloadResultEntity
@@ -14,19 +15,24 @@ import javax.inject.Singleton
 
 @Singleton
 class ResourceRepository @Inject constructor(
-    private val permissionRepository: PermissionRepository
+    private val permissionRepository: PermissionRepository,
+    private val connectionManager: ConnectionManager
 ) {
 
     fun getLaptopResources(laptop: Laptop): Flow<NetworkResult<List<ResourceRequest>>> = flow {
         emit(NetworkResult.Loading)
-        // Simulated local catalog from the laptop
-        val dummyCatalog = listOf(
-            ResourceRequest("res_01", "Security-Lab.pdf", ResourceType.FILE, 12 * 1024 * 1024L, "C:\\Files\\Security-Lab.pdf"),
-            ResourceRequest("res_02", "Setup.msi", ResourceType.FILE, 45 * 1024 * 1024L, "C:\\Files\\Setup.msi"),
-            ResourceRequest("res_03", "Example.exe", ResourceType.FILE, 5 * 1024 * 1024L, "C:\\Files\\Example.exe"),
-            ResourceRequest("res_04", "Report.docx", ResourceType.FILE, 2 * 1024 * 1024L, "C:\\Files\\Report.docx")
-        )
-        emit(NetworkResult.Success(dummyCatalog))
+        val result = connectionManager.fetchResourceCatalog(laptop)
+        emit(result)
+    }
+
+    suspend fun triggerResourceRequest(
+        laptop: Laptop,
+        resourceId: String,
+        resourceName: String,
+        resourceType: String,
+        fileSize: Long
+    ): NetworkResult<String> {
+        return connectionManager.triggerResourceRequest(laptop, resourceId, resourceName, resourceType, fileSize)
     }
 
     suspend fun getDownloadResult(requestId: String): DownloadResultEntity? {

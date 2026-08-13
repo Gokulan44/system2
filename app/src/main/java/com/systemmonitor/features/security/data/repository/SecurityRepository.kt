@@ -7,6 +7,7 @@ import com.systemmonitor.features.security.domain.model.SecurityScan
 import com.systemmonitor.features.security.domain.model.SecurityScore
 import com.systemmonitor.features.security.domain.model.ThreatInfo
 import com.systemmonitor.features.security.domain.model.ThreatSeverity
+import com.systemmonitor.features.security.domain.scanner.ThreatAnalyzer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -105,5 +106,37 @@ class SecurityRepository @Inject constructor(
                 recommendedAction = entity.recommendedAction
             )
         }
+    }
+
+    suspend fun resolveThreat(threatId: String, scanId: Long) {
+        securityScanDao.deleteThreat(threatId)
+
+        val remainingThreatEntities = securityScanDao.getThreatsForScan(scanId)
+        val remainingThreats = remainingThreatEntities.map { entity ->
+            ThreatInfo(
+                id = entity.id,
+                title = entity.title,
+                description = entity.description,
+                packageName = entity.packageName,
+                severity = try {
+                    ThreatSeverity.valueOf(entity.severity)
+                } catch (e: IllegalArgumentException) {
+                    ThreatSeverity.MEDIUM
+                },
+                category = entity.category,
+                recommendedAction = entity.recommendedAction
+            )
+        }
+
+        val existingScan = securityScanDao.getScanById(scanId) ?: return
+        val score = ThreatAnalyzer().calculateScore(remainingThreats)
+
+        securityScanDao.insertScan(
+            existingScan.copy(
+                score = score.score,
+                rating = score.rating,
+                issuesFoundCount = remainingThreats.size
+            )
+        )
     }
 }

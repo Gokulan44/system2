@@ -18,7 +18,7 @@ class RequestValidator @Inject constructor() {
             return false
         }
 
-        if (request.resource.sizeBytes <= 0) {
+        if (request.resource.sizeBytes < 0) {
             return false
         }
 

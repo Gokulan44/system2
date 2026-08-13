@@ -19,6 +19,8 @@ import com.systemmonitor.local.database.dao.LaptopDao
 import com.systemmonitor.local.database.entity.LaptopEntity
 import com.systemmonitor.local.database.dao.UnlockHistoryDao
 import com.systemmonitor.local.database.entity.UnlockHistoryEntity
+import com.systemmonitor.features.intrusion.data.entity.IntrusionEventEntity
+import com.systemmonitor.features.intrusion.data.dao.IntrusionEventDao
 
 /**
  * Add new @Entity classes to `entities` and a matching `abstract fun xDao()`
@@ -34,9 +36,10 @@ import com.systemmonitor.local.database.entity.UnlockHistoryEntity
         NetworkEntity::class,
         WifiEntity::class,
         LaptopEntity::class,
-        UnlockHistoryEntity::class
+        UnlockHistoryEntity::class,
+        IntrusionEventEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -48,4 +51,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun wifiDao(): WifiDao
     abstract fun laptopDao(): LaptopDao
     abstract fun unlockHistoryDao(): UnlockHistoryDao
+    abstract fun intrusionEventDao(): IntrusionEventDao
 }

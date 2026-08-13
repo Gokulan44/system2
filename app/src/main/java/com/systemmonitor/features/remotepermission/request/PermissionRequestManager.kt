@@ -34,7 +34,8 @@ class PermissionRequestManager @Inject constructor(
     private val validator: RequestValidator,
     private val notificationManager: NotificationManager,
     private val firestore: FirebaseFirestore,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val intrusionRepository: com.systemmonitor.features.intrusion.data.repository.IntrusionRepository
 ) {
     companion object {
         private const val TAG = "PermissionReqManager"
@@ -117,7 +118,19 @@ class PermissionRequestManager @Inject constructor(
                     }
                 }
 
-            activeFirestoreListeners[laptop.id] = listOf(requestReg, resultReg)
+            // Listener C: Incoming Intrusion Alerts
+            val intrusionReg = docRef.collection("intrusion_events")
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) return@addSnapshotListener
+                    snapshot?.documentChanges?.forEach { change ->
+                        if (change.type == DocumentChange.Type.ADDED) {
+                            val data = change.document.data
+                            handleIncomingIntrusionMap(data, laptop.id)
+                        }
+                    }
+                }
+
+            activeFirestoreListeners[laptop.id] = listOf(requestReg, resultReg, intrusionReg)
         }
     }
 
@@ -164,6 +177,8 @@ class PermissionRequestManager @Inject constructor(
                             managerScope.launch {
                                 saveAndNotifyScanResult(reqId, filename, status, sha256, riskLevel, details)
                             }
+                        } else if (type == "intrusion_detected") {
+                            handleIncomingIntrusionJson(data, laptop.id)
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Error reading WebSocket message: ${e.message}")
@@ -186,6 +201,13 @@ class PermissionRequestManager @Inject constructor(
     }
 
     suspend fun handleIncomingRequest(request: PermissionRequest) {
+        // Check if request already exists in local DB to prevent resetting status or duplicate notifications
+        val existingRequest = repository.getRequestById(request.requestId)
+        if (existingRequest != null) {
+            Log.d(TAG, "Request ${request.requestId} already exists locally. Skipping incoming registration.")
+            return
+        }
+
         if (validator.isValid(request)) {
             request.status = PermissionStatus.PENDING
             receivePermissionRequestUseCase(request)
@@ -204,6 +226,13 @@ class PermissionRequestManager @Inject constructor(
         riskLevel: String,
         details: String
     ) {
+        // Check if we have already saved/notified a result for this requestId to avoid duplicate popups on startup
+        val existingResult = repository.getDownloadResult(requestId)
+        if (existingResult != null) {
+            Log.d(TAG, "Result for request $requestId already saved and notified. Skipping.")
+            return
+        }
+
         // Save scan outcome to SQLite Room DB
         val download = DownloadResultEntity(
             requestId = requestId,
@@ -242,6 +271,62 @@ class PermissionRequestManager @Inject constructor(
             requestId = requestId,
             status = if (status == "SAFE") PermissionStatus.APPROVED else PermissionStatus.DENIED
         )
+    }
+
+    private fun handleIncomingIntrusionJson(data: JSONObject, laptopId: String) {
+        val eventId = data.optString("eventId") ?: return
+        val timestamp = data.optLong("timestamp", System.currentTimeMillis())
+        val attemptCount = data.optInt("attemptCount", 1)
+        val severity = data.optString("severity", "WARNING")
+        val encryptedPhoto = data.optString("encryptedPhoto").takeIf { it.isNotEmpty() }
+        val photoHash = data.optString("photoHash").takeIf { it.isNotEmpty() }
+
+        val entity = com.systemmonitor.features.intrusion.data.entity.IntrusionEventEntity(
+            eventId = eventId,
+            laptopId = laptopId,
+            timestamp = timestamp,
+            attemptCount = attemptCount,
+            severity = severity,
+            isRead = false,
+            encryptedPhoto = encryptedPhoto,
+            photoHash = photoHash
+        )
+        
+        managerScope.launch {
+            val existing = intrusionRepository.getEventById(eventId)
+            if (existing == null) {
+                intrusionRepository.insertEvent(entity)
+                notificationManager.sendIntrusionNotification(entity)
+            }
+        }
+    }
+
+    private fun handleIncomingIntrusionMap(data: Map<String, Any>, laptopId: String) {
+        val eventId = data["eventId"] as? String ?: return
+        val timestamp = (data["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis()
+        val attemptCount = (data["attemptCount"] as? Number)?.toInt() ?: 1
+        val severity = data["severity"] as? String ?: "WARNING"
+        val encryptedPhoto = (data["encryptedPhoto"] as? String)?.takeIf { it.isNotEmpty() }
+        val photoHash = (data["photoHash"] as? String)?.takeIf { it.isNotEmpty() }
+
+        val entity = com.systemmonitor.features.intrusion.data.entity.IntrusionEventEntity(
+            eventId = eventId,
+            laptopId = laptopId,
+            timestamp = timestamp,
+            attemptCount = attemptCount,
+            severity = severity,
+            isRead = false,
+            encryptedPhoto = encryptedPhoto,
+            photoHash = photoHash
+        )
+        
+        managerScope.launch {
+            val existing = intrusionRepository.getEventById(eventId)
+            if (existing == null) {
+                intrusionRepository.insertEvent(entity)
+                notificationManager.sendIntrusionNotification(entity)
+            }
+        }
     }
 
     // --- Parsing Helpers ---

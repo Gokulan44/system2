@@ -72,4 +72,8 @@ sealed class NavDestination(val route: String) {
     object PermissionHistory : NavDestination("permission_history")
     object ResourceCenter : NavDestination("resource_center")
     object DownloadStatus : NavDestination("download_status")
+    object IntrusionCenter : NavDestination("intrusion_center")
+    object IntrusionDetails : NavDestination("intrusion_details/{eventId}") {
+        fun createRoute(eventId: String) = "intrusion_details/$eventId"
+    }
 }

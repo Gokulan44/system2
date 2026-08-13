@@ -23,14 +23,19 @@ import com.systemmonitor.data.network.NetworkResult
 import com.systemmonitor.domain.model.CommandType
 import com.systemmonitor.domain.model.Laptop
 import com.systemmonitor.viewmodel.LaptopViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.systemmonitor.features.settings.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RemoteControlScreen(
     laptopViewModel: LaptopViewModel,
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val settingsState by settingsViewModel.uiState.collectAsState()
+    val powerSettings = settingsState.settings.power
     val selectedLaptop by laptopViewModel.selectedLaptop.collectAsState()
     val commandResult by laptopViewModel.commandResult.collectAsState()
 
@@ -107,7 +112,19 @@ fun RemoteControlScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             PowerControls(
-                onCommandSelect = { cmd -> activeDialogCommand = cmd }
+                onCommandSelect = { cmd ->
+                    val needsConfirmation = when (cmd) {
+                        CommandType.SLEEP -> powerSettings.remoteSleepConfirmation
+                        CommandType.RESTART -> powerSettings.remoteRestartConfirmation
+                        CommandType.SHUTDOWN -> powerSettings.remoteShutdownConfirmation
+                        else -> true
+                    }
+                    if (needsConfirmation) {
+                        activeDialogCommand = cmd
+                    } else {
+                        laptopViewModel.sendPowerCommand(cmd, "1234")
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(24.dp))

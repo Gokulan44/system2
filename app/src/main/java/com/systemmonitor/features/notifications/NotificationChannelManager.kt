@@ -15,6 +15,7 @@ class NotificationChannelManager @Inject constructor(
     companion object {
         const val CHANNEL_PERMISSION_ID = "channel_permission_requests"
         const val CHANNEL_DOWNLOAD_ID = "channel_download_results"
+        const val CHANNEL_INTRUSION_ID = "channel_intrusion_alerts"
     }
 
     fun createNotificationChannels() {
@@ -40,8 +41,19 @@ class NotificationChannelManager @Inject constructor(
                 description = "Notifies you of the results of download scans and quarantines"
             }
 
+            // 3. Intrusion Alerts channel (High priority)
+            val intrusionChannel = NotificationChannel(
+                CHANNEL_INTRUSION_ID,
+                "Intrusion Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifies you when a failed logon or intrusion is registered on your laptop"
+                enableVibration(true)
+            }
+
             manager.createNotificationChannel(permChannel)
             manager.createNotificationChannel(downloadChannel)
+            manager.createNotificationChannel(intrusionChannel)
         }
     }
 }

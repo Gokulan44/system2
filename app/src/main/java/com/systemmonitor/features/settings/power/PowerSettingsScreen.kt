@@ -114,7 +114,15 @@ fun PowerSettingsScreen(
                 desc = "Require dialog confirmation before Sleep / Shutdown",
                 checked = power.remoteSleepConfirmation,
                 onCheckedChange = {
-                    viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(power = power.copy(remoteSleepConfirmation = it))))
+                    viewModel.onEvent(SettingsEvent.UpdateSettings(
+                        state.settings.copy(
+                            power = power.copy(
+                                remoteSleepConfirmation = it,
+                                remoteRestartConfirmation = it,
+                                remoteShutdownConfirmation = it
+                            )
+                        )
+                    ))
                 }
             )
 

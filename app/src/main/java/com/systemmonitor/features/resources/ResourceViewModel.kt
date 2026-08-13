@@ -54,4 +54,19 @@ class ResourceViewModel @Inject constructor(
             _securityScanResult.value = scan
         }
     }
+
+    private val _requestTriggerState = MutableStateFlow<NetworkResult<String>?>(null)
+    val requestTriggerState: StateFlow<NetworkResult<String>?> = _requestTriggerState.asStateFlow()
+
+    fun triggerResourceDownload(laptop: Laptop, resourceId: String, name: String, type: String, sizeBytes: Long) {
+        viewModelScope.launch {
+            _requestTriggerState.value = NetworkResult.Loading
+            val result = repository.triggerResourceRequest(laptop, resourceId, name, type, sizeBytes)
+            _requestTriggerState.value = result
+        }
+    }
+
+    fun clearTriggerState() {
+        _requestTriggerState.value = null
+    }
 }

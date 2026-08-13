@@ -67,6 +67,9 @@ object DatabaseModule {
     fun provideUnlockHistoryDao(db: AppDatabase): com.systemmonitor.local.database.dao.UnlockHistoryDao = db.unlockHistoryDao()
 
     @Provides
+    fun provideIntrusionEventDao(db: AppDatabase): com.systemmonitor.features.intrusion.data.dao.IntrusionEventDao = db.intrusionEventDao()
+
+    @Provides
     @Singleton
     fun provideAppLockDatabase(@ApplicationContext context: Context): AppLockDataDatabase =
         Room.databaseBuilder(context, AppLockDataDatabase::class.java, "app_lock.db")

@@ -29,6 +29,6 @@ class ApproveResourceUseCase @Inject constructor(
         )
         repository.insertHistory(historyEntry)
         
-        return createApprovalTokenUseCase(request, signatureInstance)
+        return createApprovalTokenUseCase(request, signatureInstance, verificationMethod)
     }
 }

@@ -194,6 +194,73 @@ class ApiClient @Inject constructor(
             NetworkResult.Error(e.message ?: "Failed to send approval to laptop", e)
         }
     }
+
+    suspend fun fetchResourceCatalog(baseUrl: String, token: String?): NetworkResult<List<com.systemmonitor.features.remotepermission.domain.model.ResourceRequest>> = withContext(Dispatchers.IO) {
+        try {
+            val reqBuilder = Request.Builder().url("$baseUrl/api/resource/catalog").get()
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
+            val response = client.newCall(reqBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+            if (response.isSuccessful && body.isNotEmpty()) {
+                val list = mutableListOf<com.systemmonitor.features.remotepermission.domain.model.ResourceRequest>()
+                val array = JSONArray(body)
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val id = obj.getString("id")
+                    val name = obj.getString("name")
+                    val typeStr = obj.optString("type", "FILE")
+                    val size = obj.optLong("size", 0L)
+                    list.add(
+                        com.systemmonitor.features.remotepermission.domain.model.ResourceRequest(
+                            resourceId = id,
+                            name = name,
+                            type = runCatching { com.systemmonitor.features.remotepermission.domain.model.ResourceType.valueOf(typeStr) }.getOrDefault(com.systemmonitor.features.remotepermission.domain.model.ResourceType.FILE),
+                            sizeBytes = size,
+                            path = "C:\\Files\\$name"
+                        )
+                    )
+                }
+                NetworkResult.Success(list)
+            } else {
+                NetworkResult.Error("Failed to fetch catalog: ${response.code}")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Catalog fetching failed", e)
+        }
+    }
+
+    suspend fun triggerResourceRequest(
+        baseUrl: String,
+        token: String?,
+        resourceId: String,
+        resourceName: String,
+        resourceType: String,
+        fileSize: Long
+    ): NetworkResult<String> = withContext(Dispatchers.IO) {
+        try {
+            val json = JSONObject().apply {
+                put("resource_id", resourceId)
+                put("resource_name", resourceName)
+                put("resource_type", resourceType)
+                put("file_size_bytes", fileSize)
+                put("requested_operation", "DOWNLOAD")
+            }
+            val reqBuilder = Request.Builder()
+                .url("$baseUrl/api/resource/request")
+                .post(json.toString().toRequestBody(jsonMediaType))
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
+            val response = client.newCall(reqBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+            if (response.isSuccessful && body.isNotEmpty()) {
+                val obj = JSONObject(body)
+                NetworkResult.Success(obj.optString("requestId", ""))
+            } else {
+                NetworkResult.Error("Failed to trigger request: ${response.code}")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Trigger request failed", e)
+        }
+    }
 }
 
 data class PairingResponse(

@@ -30,7 +30,8 @@ class ApprovalTokenManager @Inject constructor(
         createdAt: Long,
         expiresAt: Long,
         nonce: String,
-        signatureInstance: Signature
+        signatureInstance: Signature,
+        verificationMethod: String = "BIOMETRIC"
     ): String {
         val signingString = generateSigningString(
             requestId = requestId,
@@ -42,8 +43,15 @@ class ApprovalTokenManager @Inject constructor(
             nonce = nonce
         )
         
-        val signatureB64 = keyStoreManager.signPayload(signatureInstance, signingString)
-        val publicKeyB64 = keyStoreManager.getPublicKeyBase64(laptopId)
+        val useBiometric = verificationMethod == "BIOMETRIC"
+        val finalSignatureInstance = if (useBiometric) {
+            signatureInstance
+        } else {
+            keyStoreManager.initSignature(laptopId, useBiometric = false)
+        }
+        
+        val signatureB64 = keyStoreManager.signPayload(finalSignatureInstance, signingString)
+        val publicKeyB64 = keyStoreManager.getPublicKeyBase64(laptopId, useBiometric = useBiometric)
 
         return JSONObject().apply {
             put("requestId", requestId)

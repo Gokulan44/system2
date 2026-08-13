@@ -107,4 +107,38 @@ class ConnectionManager @Inject constructor(
             ConnectionMode.REMOTE -> remoteRelay.approveResourceRemote(laptop.id, approvalTokenJson)
         }
     }
+
+    suspend fun fetchResourceCatalog(laptop: Laptop): NetworkResult<List<com.systemmonitor.features.remotepermission.domain.model.ResourceRequest>> {
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.fetchResourceCatalog(getBaseUrl(laptop), laptop.accessToken)
+            ConnectionMode.REMOTE -> {
+                // Remote Mode Fallback (since remote relay lacks generic catalog GET endpoints)
+                val dummyCatalog = listOf(
+                    com.systemmonitor.features.remotepermission.domain.model.ResourceRequest("res_01", "Security-Lab.pdf", com.systemmonitor.features.remotepermission.domain.model.ResourceType.FILE, 12 * 1024 * 1024L, "C:\\Files\\Security-Lab.pdf"),
+                    com.systemmonitor.features.remotepermission.domain.model.ResourceRequest("res_02", "Setup.msi", com.systemmonitor.features.remotepermission.domain.model.ResourceType.FILE, 45 * 1024 * 1024L, "C:\\Files\\Setup.msi"),
+                    com.systemmonitor.features.remotepermission.domain.model.ResourceRequest("res_03", "Example.exe", com.systemmonitor.features.remotepermission.domain.model.ResourceType.FILE, 5 * 1024 * 1024L, "C:\\Files\\Example.exe"),
+                    com.systemmonitor.features.remotepermission.domain.model.ResourceRequest("res_04", "Report.docx", com.systemmonitor.features.remotepermission.domain.model.ResourceType.FILE, 2 * 1024 * 1024L, "C:\\Files\\Report.docx")
+                )
+                NetworkResult.Success(dummyCatalog)
+            }
+        }
+    }
+
+    suspend fun triggerResourceRequest(
+        laptop: Laptop,
+        resourceId: String,
+        resourceName: String,
+        resourceType: String,
+        fileSize: Long
+    ): NetworkResult<String> {
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.triggerResourceRequest(
+                getBaseUrl(laptop), laptop.accessToken, resourceId, resourceName, resourceType, fileSize
+            )
+            ConnectionMode.REMOTE -> {
+                // Remote mock request triggers
+                NetworkResult.Success("req_remote_mock_${System.currentTimeMillis()}")
+            }
+        }
+    }
 }

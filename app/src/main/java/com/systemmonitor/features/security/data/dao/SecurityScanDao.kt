@@ -18,4 +18,10 @@ interface SecurityScanDao {
 
     @Query("SELECT * FROM threat_table WHERE scanId = :scanId")
     suspend fun getThreatsForScan(scanId: Long): List<ThreatEntity>
+
+    @Query("SELECT * FROM security_scan_table WHERE scanId = :scanId")
+    suspend fun getScanById(scanId: Long): SecurityScanEntity?
+
+    @Query("DELETE FROM threat_table WHERE id = :threatId")
+    suspend fun deleteThreat(threatId: String)
 }

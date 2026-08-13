@@ -25,6 +25,7 @@ import kotlinx.coroutines.delay
 fun DownloadStatusScreen(
     resourceViewModel: ResourceViewModel,
     resourceName: String,
+    requestId: String = "req_sim",
     onBackClick: () -> Unit
 ) {
     val downloadResult by resourceViewModel.downloadResult.collectAsState()
@@ -34,52 +35,91 @@ fun DownloadStatusScreen(
     var statusText by remember { mutableStateOf("Waiting for approval...") }
     var isSimulating by remember { mutableStateOf(true) }
 
-    LaunchedEffect(Unit) {
-        // Start simulation of download after user approvals
-        resourceViewModel.simulateDownloadResult(
-            requestId = "req_sim",
-            status = "PENDING",
-            filePath = "",
-            scanStatus = "PENDING",
-            hash = "",
-            details = ""
-        )
-
-        // 1. Wait for simulated approval
-        delay(2000)
-        statusText = "Downloading file from laptop..."
-        
-        // 2. Animate progress bar
-        while (progress < 1f) {
-            progress += 0.2f
-            delay(400)
-        }
-        
-        // 3. Scan phase
-        statusText = "Analyzing & Scanning file safety..."
-        progress = 1.0f
-        delay(1500)
-
-        // 4. Save outcome
-        isSimulating = false
-        if (resourceName == "Example.exe" || resourceName == "Setup.msi") {
+    LaunchedEffect(requestId) {
+        if (requestId == "req_sim") {
+            // Start simulation of download after user approvals
             resourceViewModel.simulateDownloadResult(
                 requestId = "req_sim",
-                status = "QUARANTINED",
-                filePath = "C:\\quarantine\\$resourceName",
-                scanStatus = "SUSPICIOUS",
-                hash = "E92A8C103F808912A346C890FE1116B97C231450239A01B2E3F401E788F9651C",
-                details = "Suspicious executable containing untrusted binary signatures matches security policy threat list."
+                status = "PENDING",
+                filePath = "",
+                scanStatus = "PENDING",
+                hash = "",
+                details = ""
             )
+
+            // 1. Wait for simulated approval
+            delay(2000)
+            statusText = "Downloading file from laptop..."
+            
+            // 2. Animate progress bar
+            while (progress < 1f) {
+                progress += 0.2f
+                delay(400)
+            }
+            
+            // 3. Scan phase
+            statusText = "Analyzing & Scanning file safety..."
+            progress = 1.0f
+            delay(1500)
+
+            // 4. Save outcome
+            isSimulating = false
+            if (resourceName == "Example.exe" || resourceName == "Setup.msi") {
+                resourceViewModel.simulateDownloadResult(
+                    requestId = "req_sim",
+                    status = "QUARANTINED",
+                    filePath = "C:\\quarantine\\$resourceName",
+                    scanStatus = "SUSPICIOUS",
+                    hash = "E92A8C103F808912A346C890FE1116B97C231450239A01B2E3F401E788F9651C",
+                    details = "Suspicious executable containing untrusted binary signatures matches security policy threat list."
+                )
+            } else {
+                resourceViewModel.simulateDownloadResult(
+                    requestId = "req_sim",
+                    status = "COMPLETED",
+                    filePath = "C:\\downloads\\approved\\$resourceName",
+                    scanStatus = "SAFE",
+                    hash = "8A7C9241B26955C2F6E341B2E391F2618A7C9241B26955C2F6E341B2E391F261",
+                    details = "No threats found. SHA-256 hash match verified. File signature matches trusted author certificate."
+                )
+            }
         } else {
-            resourceViewModel.simulateDownloadResult(
-                requestId = "req_sim",
-                status = "COMPLETED",
-                filePath = "C:\\downloads\\approved\\$resourceName",
-                scanStatus = "SAFE",
-                hash = "8A7C9241B26955C2F6E341B2E391F2618A7C9241B26955C2F6E341B2E391F261",
-                details = "No threats found. SHA-256 hash match verified. File signature matches trusted author certificate."
-            )
+            isSimulating = true
+            progress = 0.1f
+            statusText = "Waiting for approval..."
+            
+            while (isSimulating) {
+                resourceViewModel.loadResultAndScan(requestId)
+                val res = downloadResult
+                val scan = securityScanResult
+                if (res != null) {
+                    when (res.status) {
+                        "PENDING" -> {
+                            statusText = "Waiting for approval..."
+                            progress = 0.15f
+                        }
+                        "APPROVED" -> {
+                            statusText = "Approved. Starting download..."
+                            progress = 0.3f
+                        }
+                        "DOWNLOADING" -> {
+                            statusText = "Downloading file from laptop..."
+                            if (progress < 0.7f) progress += 0.05f
+                        }
+                        "COMPLETED", "QUARANTINED" -> {
+                            statusText = "Scanning and analyzing file safety..."
+                            progress = 0.9f
+                            if (scan != null && scan.status != "PENDING") {
+                                isSimulating = false
+                            }
+                        }
+                        "REJECTED" -> {
+                            isSimulating = false
+                        }
+                    }
+                }
+                delay(1000)
+            }
         }
     }
 

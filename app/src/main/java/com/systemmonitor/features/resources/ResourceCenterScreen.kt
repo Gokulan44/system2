@@ -35,10 +35,13 @@ fun ResourceCenterScreen(
     permissionViewModel: PermissionViewModel,
     laptopViewModel: LaptopViewModel,
     onBackClick: () -> Unit,
-    onNavigateToStatus: (String) -> Unit
+    onNavigateToStatus: (String, String) -> Unit
 ) {
     val selectedLaptop by laptopViewModel.selectedLaptop.collectAsState()
     val catalogState by resourceViewModel.catalog.collectAsState()
+    val requestTriggerState by resourceViewModel.requestTriggerState.collectAsState()
+
+    var selectedFileName by remember { mutableStateOf("") }
 
     val laptop = selectedLaptop ?: Laptop(
         id = "LAPTOP-7F29A1",
@@ -50,6 +53,17 @@ fun ResourceCenterScreen(
 
     LaunchedEffect(laptop) {
         resourceViewModel.loadResourcesForLaptop(laptop)
+    }
+
+    LaunchedEffect(requestTriggerState) {
+        when (val state = requestTriggerState) {
+            is NetworkResult.Success -> {
+                val reqId = state.data
+                onNavigateToStatus(selectedFileName, reqId)
+                resourceViewModel.clearTriggerState()
+            }
+            else -> {}
+        }
     }
 
     val bgGradient = Brush.verticalGradient(
@@ -133,14 +147,10 @@ fun ResourceCenterScreen(
                                 ResourceItemRow(
                                     resource = item,
                                     onClick = {
-                                        // 1. Simulate permission request popup on Android
-                                        permissionViewModel.simulateRequest(
-                                            laptopId = laptop.id,
-                                            resourceName = item.name,
-                                            fileSizeBytes = item.sizeBytes
+                                        selectedFileName = item.name
+                                        resourceViewModel.triggerResourceDownload(
+                                            laptop, item.resourceId, item.name, item.type.name, item.sizeBytes
                                         )
-                                        // 2. Direct user to the status screen where progress is tracked
-                                        onNavigateToStatus(item.name)
                                     }
                                 )
                             }
@@ -155,6 +165,16 @@ fun ResourceCenterScreen(
                     )
                 }
                 else -> {}
+            }
+            if (requestTriggerState is NetworkResult.Loading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color(0xFF00E5FF))
+                }
             }
         }
     }

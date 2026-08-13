@@ -11,7 +11,11 @@ class CreateApprovalTokenUseCase @Inject constructor(
     private val tokenManager: ApprovalTokenManager,
     private val repository: PermissionRepository
 ) {
-    suspend operator fun invoke(request: PermissionRequest, signatureInstance: Signature): String {
+    suspend operator fun invoke(
+        request: PermissionRequest,
+        signatureInstance: Signature,
+        verificationMethod: String = "BIOMETRIC"
+    ): String {
         val now = System.currentTimeMillis()
         val expiresAt = request.expiresAt
         val tokenJson = tokenManager.createSignedTokenJson(
@@ -22,7 +26,8 @@ class CreateApprovalTokenUseCase @Inject constructor(
             createdAt = now,
             expiresAt = expiresAt,
             nonce = request.requestNonce,
-            signatureInstance = signatureInstance
+            signatureInstance = signatureInstance,
+            verificationMethod = verificationMethod
         )
 
         // Parse signature for logging

@@ -1,5 +1,7 @@
 package com.systemmonitor.features.device
 
+import android.content.Context
+import android.os.BatteryManager
 import android.os.Build
 import android.os.SystemClock
 import androidx.compose.foundation.background
@@ -22,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Speed
@@ -46,6 +49,11 @@ import java.util.concurrent.TimeUnit
 fun DeviceInfoScreen(
     onBackClick: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+    val batteryPct = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+    val isCharging = batteryManager.isCharging
+
     val model = Build.MODEL ?: "Android Device"
     val manufacturer = Build.MANUFACTURER ?: "Generic"
     val osVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
@@ -172,6 +180,8 @@ fun DeviceInfoScreen(
             SpecDetailRow(icon = Icons.Default.Android, title = "Motherboard / Hardware", value = board)
             Spacer(modifier = Modifier.height(8.dp))
             SpecDetailRow(icon = Icons.Default.Timer, title = "System Uptime", value = "${uptimeHours}h ${uptimeMins}m")
+            Spacer(modifier = Modifier.height(8.dp))
+            SpecDetailRow(icon = Icons.Default.BatteryChargingFull, title = "Device Battery", value = "$batteryPct% ${if (isCharging) "(Charging)" else "(Discharging)"}")
 
             Spacer(modifier = Modifier.height(24.dp))
         }

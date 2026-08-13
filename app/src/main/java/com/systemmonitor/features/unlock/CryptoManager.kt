@@ -50,6 +50,10 @@ object CryptoManager {
     fun initSignature(laptopId: String): Signature {
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         val alias = KEY_ALIAS_PREFIX + laptopId
+        
+        // Ensure key exists
+        getOrGenerateKeyPair(laptopId)
+        
         val privateKey = keyStore.getKey(alias, null) as java.security.PrivateKey
 
         val signature = Signature.getInstance("SHA256withECDSA")

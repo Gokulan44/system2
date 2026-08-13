@@ -47,21 +47,36 @@ class AndroidKeyStoreManager @Inject constructor() {
         return kpg.generateKeyPair()
     }
 
-    fun getPublicKeyBase64(laptopId: String): String {
-        val keyPair = getOrGenerateKeyPair(laptopId)
+    private val ephemeralKeys = java.util.concurrent.ConcurrentHashMap<String, KeyPair>()
+
+    private fun getEphemeralKeyPair(laptopId: String): KeyPair {
+        return ephemeralKeys.getOrPut(laptopId) {
+            val kpg = KeyPairGenerator.getInstance("EC")
+            kpg.initialize(256)
+            kpg.generateKeyPair()
+        }
+    }
+
+    fun getPublicKeyBase64(laptopId: String, useBiometric: Boolean = true): String {
+        val keyPair = if (useBiometric) getOrGenerateKeyPair(laptopId) else getEphemeralKeyPair(laptopId)
         return Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
     }
 
-    fun initSignature(laptopId: String): Signature {
-        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        val alias = KEY_ALIAS_PREFIX + laptopId
-        
-        // Ensure key exists
-        getOrGenerateKeyPair(laptopId)
-        
-        val privateKey = keyStore.getKey(alias, null) as java.security.PrivateKey
+    fun initSignature(laptopId: String, useBiometric: Boolean = true): Signature {
         val signature = Signature.getInstance("SHA256withECDSA")
-        signature.initSign(privateKey)
+        if (useBiometric) {
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            val alias = KEY_ALIAS_PREFIX + laptopId
+            
+            // Ensure key exists
+            getOrGenerateKeyPair(laptopId)
+            
+            val privateKey = keyStore.getKey(alias, null) as java.security.PrivateKey
+            signature.initSign(privateKey)
+        } else {
+            val keyPair = getEphemeralKeyPair(laptopId)
+            signature.initSign(keyPair.private)
+        }
         return signature
     }
 

@@ -29,6 +29,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.systemmonitor.applock.manager.AppLockManager
 import com.systemmonitor.applock.settings.AppLockSettingsViewModel
+import com.systemmonitor.features.intrusion.presentation.IntrusionCenterScreen
+import com.systemmonitor.features.intrusion.presentation.IntrusionDetailsScreen
+import com.systemmonitor.features.intrusion.presentation.IntrusionViewModel
 import com.systemmonitor.applock.ui.ChooseLockMethodScreen
 import com.systemmonitor.applock.ui.LockResultScreen
 import com.systemmonitor.applock.ui.SetPinScreen
@@ -78,6 +81,7 @@ import com.systemmonitor.features.security.domain.model.SecurityScan
 import com.systemmonitor.features.security.presentation.dashboard.SecurityDashboardScreen
 import com.systemmonitor.features.security.presentation.history.ScanHistoryScreen
 import com.systemmonitor.features.security.presentation.result.ResolveActionsScreen
+import com.systemmonitor.features.security.presentation.result.ResolveActionsViewModel
 import com.systemmonitor.features.security.presentation.result.ScanResultScreen
 import com.systemmonitor.features.security.presentation.result.SecurityReportScreen
 import com.systemmonitor.features.security.presentation.scan.SecurityScanScreen
@@ -122,18 +126,24 @@ fun MainScreenContainer(
     appLockSettingsViewModel: AppLockSettingsViewModel = hiltViewModel(),
     permissionViewModel: PermissionViewModel = hiltViewModel(),
     resourceViewModel: ResourceViewModel = hiltViewModel(),
+    intrusionViewModel: IntrusionViewModel = hiltViewModel(),
+    resolveActionsViewModel: ResolveActionsViewModel = hiltViewModel(),
     initialRoute: String? = null
 ) {
     var currentDestination by remember { mutableStateOf<NavDestination>(NavDestination.Home) }
     var lastScanResult by remember { mutableStateOf<SecurityScan?>(null) }
     var selectedThreat by remember { mutableStateOf<com.systemmonitor.features.security.domain.model.ThreatInfo?>(null) }
     var simulatedResourceName by remember { mutableStateOf("") }
+    var selectedEventId by remember { mutableStateOf("") }
+    var activeDownloadRequestId by remember { mutableStateOf("") }
 
     LaunchedEffect(initialRoute) {
         if (initialRoute == "resource_permission") {
             currentDestination = NavDestination.ResourcePermission
         } else if (initialRoute == "resource_center") {
             currentDestination = NavDestination.ResourceCenter
+        } else if (initialRoute == "intrusion_center") {
+            currentDestination = NavDestination.IntrusionCenter
         }
     }
 
@@ -262,15 +272,30 @@ fun MainScreenContainer(
                     permissionViewModel = permissionViewModel,
                     laptopViewModel = laptopViewModel,
                     onBackClick = { currentDestination = NavDestination.LaptopDetails },
-                    onNavigateToStatus = { filename ->
+                    onNavigateToStatus = { filename, reqId ->
                         simulatedResourceName = filename
+                        activeDownloadRequestId = reqId
                         currentDestination = NavDestination.DownloadStatus
                     }
                 )
                 is NavDestination.DownloadStatus -> DownloadStatusScreen(
                     resourceViewModel = resourceViewModel,
                     resourceName = simulatedResourceName,
+                    requestId = activeDownloadRequestId,
                     onBackClick = { currentDestination = NavDestination.ResourceCenter }
+                )
+                is NavDestination.IntrusionCenter -> IntrusionCenterScreen(
+                    viewModel = intrusionViewModel,
+                    onNavigateToDetails = { eventId ->
+                        selectedEventId = eventId
+                        currentDestination = NavDestination.IntrusionDetails
+                    },
+                    onBackClick = { currentDestination = NavDestination.Home }
+                )
+                is NavDestination.IntrusionDetails -> IntrusionDetailsScreen(
+                    viewModel = intrusionViewModel,
+                    eventId = selectedEventId,
+                    onBackClick = { currentDestination = NavDestination.IntrusionCenter }
                 )
                 is NavDestination.LaptopUsage -> LaptopUsageScreen(
                     laptopViewModel = laptopViewModel,
@@ -327,19 +352,23 @@ fun MainScreenContainer(
                     onBackClick = { currentDestination = NavDestination.SecurityCenter }
                 )
                 is NavDestination.ResolveActions -> {
-                    val threat = selectedThreat ?: com.systemmonitor.features.security.domain.model.ThreatInfo(
-                        id = "default_threat",
-                        title = "Suspicious Application Detected",
-                        description = "Application matches untrusted signatures",
-                        severity = com.systemmonitor.features.security.domain.model.ThreatSeverity.HIGH,
-                        category = "App Security",
-                        recommendedAction = "Uninstall application"
-                    )
-                    ResolveActionsScreen(
-                        threat = threat,
-                        onResolveAction = { currentDestination = NavDestination.SecurityReport },
-                        onBackClick = { currentDestination = NavDestination.ScanResult }
-                    )
+                    val threat = selectedThreat
+                    val scanId = lastScanResult?.scanId
+                    if (threat != null && scanId != null) {
+                        ResolveActionsScreen(
+                            threat = threat,
+                            onResolveAction = { action ->
+                                resolveActionsViewModel.resolveThreat(threat.id, scanId) { updatedScan ->
+                                    lastScanResult = updatedScan
+                                    selectedThreat = null
+                                    currentDestination = NavDestination.SecurityReport
+                                }
+                            },
+                            onBackClick = { currentDestination = NavDestination.ScanResult }
+                        )
+                    } else {
+                        currentDestination = NavDestination.SecurityCenter
+                    }
                 }
                 is NavDestination.SecurityReport -> {
                     val scan = lastScanResult ?: com.systemmonitor.features.security.domain.model.SecurityScan()

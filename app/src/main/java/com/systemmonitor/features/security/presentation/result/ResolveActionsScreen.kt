@@ -22,7 +22,31 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.systemmonitor.features.security.data.repository.SecurityRepository
+import com.systemmonitor.features.security.domain.model.SecurityScan
 import com.systemmonitor.features.security.domain.model.ThreatInfo
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class ResolveActionsViewModel @Inject constructor(
+    private val repository: SecurityRepository
+) : ViewModel() {
+    fun resolveThreat(threatId: String, scanId: Long, onComplete: (SecurityScan) -> Unit) {
+        viewModelScope.launch {
+            repository.resolveThreat(threatId, scanId)
+            val history = repository.getScanHistory().first()
+            val updatedScan = history.find { it.scanId == scanId }
+            if (updatedScan != null) {
+                onComplete(updatedScan)
+            }
+        }
+    }
+}
 
 @Composable
 fun ResolveActionsScreen(
