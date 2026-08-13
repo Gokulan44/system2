@@ -336,7 +336,7 @@ fun DigitalWellbeingScreen(
                         .weight(1f)
                         .clickable {
                             try {
-                                context.startActivity(Intent(Settings.ACTION_ZEN_MODE_SETTINGS))
+                                context.startActivity(Intent(Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS))
                             } catch (e: Exception) {
                                 // Fallback
                             }
