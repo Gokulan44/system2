@@ -3,6 +3,8 @@ package com.systemmonitor.features.settings.privacy
 import android.Manifest
 import android.app.AppOpsManager
 import android.content.Context
+import android.os.Build
+import androidx.compose.material.icons.filled.Notifications
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Process
@@ -49,6 +51,15 @@ fun PermissionManagerScreen(onBackClick: () -> Unit) {
     var hasLocationPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
+    var hasNotificationPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        )
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         hasCameraPermission = it
@@ -58,6 +69,9 @@ fun PermissionManagerScreen(onBackClick: () -> Unit) {
     }
     val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         hasLocationPermission = it
+    }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        hasNotificationPermission = it
     }
 
     PrivBase("Permission Manager", onBackClick) {
@@ -96,6 +110,18 @@ fun PermissionManagerScreen(onBackClick: () -> Unit) {
             color = Color(0xFF00E5FF),
             onRequest = { locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) }
         )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Spacer(modifier = Modifier.height(10.dp))
+            PermissionItem(
+                title = "Push Notifications",
+                desc = "Required to show incoming request alerts, intrusions, and scan results",
+                isGranted = hasNotificationPermission,
+                icon = Icons.Default.Notifications,
+                color = Color(0xFFFF9800),
+                onRequest = { notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) }
+            )
+        }
     }
 }
 

@@ -19,6 +19,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 val LocalDarkMode = staticCompositionLocalOf { true }
 
@@ -32,6 +37,14 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Request post notification permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
+
         initialRoute = intent?.getStringExtra("EXTRA_NAVIGATE_TO")
         setContent {
             val settingsViewModel: SettingsViewModel = hiltViewModel()

@@ -36,9 +36,9 @@ import javax.inject.Inject
 class ResolveActionsViewModel @Inject constructor(
     private val repository: SecurityRepository
 ) : ViewModel() {
-    fun resolveThreat(threatId: String, scanId: Long, onComplete: (SecurityScan) -> Unit) {
+    fun resolveThreat(threatId: String, scanId: Long, action: String, onComplete: (SecurityScan) -> Unit) {
         viewModelScope.launch {
-            repository.resolveThreat(threatId, scanId)
+            repository.resolveThreat(threatId, scanId, action)
             val history = repository.getScanHistory().first()
             val updatedScan = history.find { it.scanId == scanId }
             if (updatedScan != null) {

@@ -82,7 +82,7 @@ class RemoteRelayManager @Inject constructor(
                 NetworkResult.Error("Remote agent did not respond in time. Ensure the Windows Agent is running and connected to the internet.")
             }
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Remote telemetry error")
+            NetworkResult.Error(refineFirebaseExceptionMessage(e, "Remote telemetry error"))
         }
     }
 
@@ -126,7 +126,7 @@ class RemoteRelayManager @Inject constructor(
                 NetworkResult.Error("Remote agent did not confirm the command.")
             }
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Remote command error")
+            NetworkResult.Error(refineFirebaseExceptionMessage(e, "Remote command error"))
         }
     }
 
@@ -166,7 +166,7 @@ class RemoteRelayManager @Inject constructor(
                 NetworkResult.Error("Remote process list unavailable.")
             }
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Remote processes error")
+            NetworkResult.Error(refineFirebaseExceptionMessage(e, "Remote processes error"))
         }
     }
 
@@ -180,7 +180,7 @@ class RemoteRelayManager @Inject constructor(
             val isAlive = (System.currentTimeMillis() - lastSeen) < 60_000L // alive if seen in last 60 s
             NetworkResult.Success(isAlive)
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Remote status check failed")
+            NetworkResult.Error(refineFirebaseExceptionMessage(e, "Remote status check failed"))
         }
     }
 
@@ -219,7 +219,7 @@ class RemoteRelayManager @Inject constructor(
                 NetworkResult.Error("Invalid pairing code. Make sure the Windows Agent is running and connected to the internet.")
             }
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Remote pairing error", e)
+            NetworkResult.Error(refineFirebaseExceptionMessage(e, "Remote pairing error"), e)
         }
     }
 
@@ -239,7 +239,19 @@ class RemoteRelayManager @Inject constructor(
             
             NetworkResult.Success(true)
         } catch (e: Exception) {
-            NetworkResult.Error(e.message ?: "Failed to write approval to Firestore")
+            NetworkResult.Error(refineFirebaseExceptionMessage(e, "Failed to write approval to Firestore"))
+        }
+    }
+
+    private fun refineFirebaseExceptionMessage(e: Exception, defaultMessage: String): String {
+        val msg = e.message ?: ""
+        return if (msg.contains("client is offline", ignoreCase = true) || 
+            msg.contains("unreachable", ignoreCase = true) ||
+            msg.contains("Could not reach Cloud Firestore backend", ignoreCase = true)
+        ) {
+            "Network connection failed. Please check your internet connection or use LOCAL connection mode."
+        } else {
+            msg.ifEmpty { defaultMessage }
         }
     }
 

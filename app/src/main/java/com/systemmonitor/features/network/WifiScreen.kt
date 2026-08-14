@@ -100,31 +100,37 @@ fun WifiScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                val history = state.signalHistory
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(90.dp)
                 ) {
-                    val path = Path().apply {
-                        moveTo(0f, size.height * 0.4f)
-                        cubicTo(
-                            size.width * 0.25f, size.height * 0.2f,
-                            size.width * 0.5f, size.height * 0.7f,
-                            size.width * 0.75f, size.height * 0.3f
-                        )
-                        cubicTo(
-                            size.width * 0.85f, size.height * 0.5f,
-                            size.width * 0.95f, size.height * 0.2f,
-                            size.width, size.height * 0.4f
+                    if (history.isNotEmpty()) {
+                        val maxPoints = history.size
+                        val stepX = size.width / (maxPoints - 1).coerceAtLeast(1)
+                        val path = Path()
+                        
+                        history.forEachIndexed { i, value ->
+                            val pct = value.coerceIn(0, 100) / 100f
+                            val x = i * stepX
+                            val y = size.height - (size.height * 0.8f * pct + size.height * 0.1f)
+                            
+                            if (i == 0) {
+                                path.moveTo(x, y)
+                            } else {
+                                path.lineTo(x, y)
+                            }
+                        }
+                        
+                        drawPath(
+                            path = path,
+                            brush = Brush.horizontalGradient(
+                                listOf(Color(0xFF00E5FF), Color(0xFF8B5CF6))
+                            ),
+                            style = Stroke(width = 3.dp.toPx())
                         )
                     }
-                    drawPath(
-                        path = path,
-                        brush = Brush.horizontalGradient(
-                            listOf(Color(0xFF00E5FF), Color(0xFF8B5CF6))
-                        ),
-                        style = Stroke(width = 3.dp.toPx())
-                    )
                 }
             }
         }

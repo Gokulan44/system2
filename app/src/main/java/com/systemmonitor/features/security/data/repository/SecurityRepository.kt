@@ -1,5 +1,7 @@
 package com.systemmonitor.features.security.data.repository
 
+import android.content.Context
+import com.systemmonitor.applock.manager.AppLockManager
 import com.systemmonitor.features.security.data.dao.SecurityScanDao
 import com.systemmonitor.features.security.data.entity.SecurityScanEntity
 import com.systemmonitor.features.security.data.entity.ThreatEntity
@@ -8,6 +10,7 @@ import com.systemmonitor.features.security.domain.model.SecurityScore
 import com.systemmonitor.features.security.domain.model.ThreatInfo
 import com.systemmonitor.features.security.domain.model.ThreatSeverity
 import com.systemmonitor.features.security.domain.scanner.ThreatAnalyzer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -16,7 +19,9 @@ import javax.inject.Singleton
 
 @Singleton
 class SecurityRepository @Inject constructor(
-    private val securityScanDao: SecurityScanDao
+    private val securityScanDao: SecurityScanDao,
+    private val appLockManager: AppLockManager,
+    @ApplicationContext private val context: Context
 ) {
     /**
      * Returns scan history with threats populated for each scan.
@@ -108,8 +113,40 @@ class SecurityRepository @Inject constructor(
         }
     }
 
-    suspend fun resolveThreat(threatId: String, scanId: Long) {
-        securityScanDao.deleteThreat(threatId)
+    suspend fun resolveThreat(threatId: String, scanId: Long, action: String) {
+        val threats = securityScanDao.getThreatsForScan(scanId)
+        val threat = threats.find { it.id == threatId }
+
+        when (action.uppercase()) {
+            "REMOVE" -> {
+                // UI launches uninstallation, repository deletes from local DB
+                securityScanDao.deleteThreat(threatId)
+            }
+            "QUARANTINE" -> {
+                // Lock app to prevent execution (App Lock Quarantine)
+                threat?.packageName?.let { pkg ->
+                    appLockManager.setAppLocked(pkg, threat.title, true)
+                }
+                securityScanDao.deleteThreat(threatId)
+            }
+            "IGNORE" -> {
+                // Add to persistent whitelist in SharedPreferences
+                val prefs = context.getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
+                val ignoredIds = prefs.getStringSet("ignored_threat_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+                ignoredIds.add(threatId)
+                prefs.edit().putStringSet("ignored_threat_ids", ignoredIds).apply()
+
+                threat?.packageName?.let { pkg ->
+                    val ignoredPackages = prefs.getStringSet("ignored_packages", emptySet())?.toMutableSet() ?: mutableSetOf()
+                    ignoredPackages.add(pkg)
+                    prefs.edit().putStringSet("ignored_packages", ignoredPackages).apply()
+                }
+                securityScanDao.deleteThreat(threatId)
+            }
+            else -> {
+                securityScanDao.deleteThreat(threatId)
+            }
+        }
 
         val remainingThreatEntities = securityScanDao.getThreatsForScan(scanId)
         val remainingThreats = remainingThreatEntities.map { entity ->

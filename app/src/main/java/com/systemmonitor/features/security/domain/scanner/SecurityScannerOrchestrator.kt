@@ -1,6 +1,8 @@
 package com.systemmonitor.features.security.domain.scanner
 
+import android.content.Context
 import com.systemmonitor.features.security.domain.model.*
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -82,8 +84,15 @@ class SecurityScanner @Inject constructor(
     private val networkSecurityScanner: NetworkSecurityScanner,
     private val storageSecurityScanner: StorageSecurityScanner,
     private val accessibilityScanner: AccessibilityScanner,
-    private val threatAnalyzer: ThreatAnalyzer
+    private val threatAnalyzer: ThreatAnalyzer,
+    @ApplicationContext private val context: Context
 ) {
+    private fun isIgnored(threat: ThreatInfo): Boolean {
+        val prefs = context.getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
+        val ignoredIds = prefs.getStringSet("ignored_threat_ids", emptySet()) ?: emptySet()
+        val ignoredPackages = prefs.getStringSet("ignored_packages", emptySet()) ?: emptySet()
+        return threat.id in ignoredIds || (threat.packageName != null && threat.packageName in ignoredPackages)
+    }
     /**
      * Single-pass scan that emits UI progress AND collects all threats.
      * The final emission has isFinished=true and finalScan populated.
@@ -96,32 +105,32 @@ class SecurityScanner @Inject constructor(
         emit(ScanProgress(10, "Checking installed apps..."))
         delay(400)
         val appThreats = withContext(Dispatchers.IO) { appScanner.scanApps() }
-        allThreats.addAll(appThreats)
+        allThreats.addAll(appThreats.filter { !isIgnored(it) })
 
         emit(ScanProgress(25, "Checking dangerous permissions..."))
         delay(400)
         val permThreats = withContext(Dispatchers.IO) { permissionScanner.scanPermissions() }
-        allThreats.addAll(permThreats)
+        allThreats.addAll(permThreats.filter { !isIgnored(it) })
 
         emit(ScanProgress(45, "Checking device security configuration..."))
         delay(400)
         val configThreats = withContext(Dispatchers.IO) { configurationScanner.scanConfiguration() }
-        allThreats.addAll(configThreats)
+        allThreats.addAll(configThreats.filter { !isIgnored(it) })
 
         emit(ScanProgress(65, "Checking network security..."))
         delay(400)
         val netThreats = withContext(Dispatchers.IO) { networkSecurityScanner.scanNetwork() }
-        allThreats.addAll(netThreats)
+        allThreats.addAll(netThreats.filter { !isIgnored(it) })
 
         emit(ScanProgress(80, "Checking accessibility services..."))
         delay(400)
         val accessThreats = withContext(Dispatchers.IO) { accessibilityScanner.scanAccessibility() }
-        allThreats.addAll(accessThreats)
+        allThreats.addAll(accessThreats.filter { !isIgnored(it) })
 
         emit(ScanProgress(90, "Checking storage/security configuration..."))
         delay(400)
         val storageThreats = withContext(Dispatchers.IO) { storageSecurityScanner.scanStorage() }
-        allThreats.addAll(storageThreats)
+        allThreats.addAll(storageThreats.filter { !isIgnored(it) })
 
         emit(ScanProgress(98, "Calculating security score & generating report..."))
         delay(300)
@@ -149,12 +158,12 @@ class SecurityScanner @Inject constructor(
         val startTime = System.currentTimeMillis()
         val allThreats = mutableListOf<ThreatInfo>()
 
-        allThreats.addAll(appScanner.scanApps())
-        allThreats.addAll(permissionScanner.scanPermissions())
-        allThreats.addAll(configurationScanner.scanConfiguration())
-        allThreats.addAll(networkSecurityScanner.scanNetwork())
-        allThreats.addAll(accessibilityScanner.scanAccessibility())
-        allThreats.addAll(storageSecurityScanner.scanStorage())
+        allThreats.addAll(appScanner.scanApps().filter { !isIgnored(it) })
+        allThreats.addAll(permissionScanner.scanPermissions().filter { !isIgnored(it) })
+        allThreats.addAll(configurationScanner.scanConfiguration().filter { !isIgnored(it) })
+        allThreats.addAll(networkSecurityScanner.scanNetwork().filter { !isIgnored(it) })
+        allThreats.addAll(accessibilityScanner.scanAccessibility().filter { !isIgnored(it) })
+        allThreats.addAll(storageSecurityScanner.scanStorage().filter { !isIgnored(it) })
 
         val score = threatAnalyzer.calculateScore(allThreats)
         val durationMs = System.currentTimeMillis() - startTime

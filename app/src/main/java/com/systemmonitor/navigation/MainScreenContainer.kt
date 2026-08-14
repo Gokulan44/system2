@@ -25,6 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.systemmonitor.applock.manager.AppLockManager
@@ -136,6 +139,7 @@ fun MainScreenContainer(
     var simulatedResourceName by remember { mutableStateOf("") }
     var selectedEventId by remember { mutableStateOf("") }
     var activeDownloadRequestId by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     LaunchedEffect(initialRoute) {
         if (initialRoute == "resource_permission") {
@@ -358,7 +362,13 @@ fun MainScreenContainer(
                         ResolveActionsScreen(
                             threat = threat,
                             onResolveAction = { action ->
-                                resolveActionsViewModel.resolveThreat(threat.id, scanId) { updatedScan ->
+                                if (action.uppercase() == "REMOVE" && !threat.packageName.isNullOrEmpty()) {
+                                    val intent = Intent(Intent.ACTION_DELETE).apply {
+                                        data = Uri.parse("package:${threat.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                }
+                                resolveActionsViewModel.resolveThreat(threat.id, scanId, action) { updatedScan ->
                                     lastScanResult = updatedScan
                                     selectedThreat = null
                                     currentDestination = NavDestination.SecurityReport

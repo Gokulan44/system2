@@ -58,6 +58,9 @@ fun FileCenterScreen(
     var scanProgress by remember { mutableStateOf(0) }
     var scannedCategories by remember { mutableStateOf<List<JunkCategory>>(emptyList()) }
     var isCleaning by remember { mutableStateOf(false) }
+    var cleanProgress by remember { mutableStateOf(0) }
+    var activeCleaningCategory by remember { mutableStateOf("") }
+    var currentFreedBytes by remember { mutableStateOf(0L) }
     var cleanSuccessMessage by remember { mutableStateOf<String?>(null) }
     
     val scope = rememberCoroutineScope()
@@ -276,8 +279,27 @@ fun FileCenterScreen(
                                 scope.launch {
                                     isCleaning = true
                                     cleanSuccessMessage = null
+                                    
+                                    val totalBytes = junkSizeBytes
+                                    
+                                    for (p in 0..100) {
+                                        cleanProgress = p
+                                        
+                                        if (p < 25) {
+                                            activeCleaningCategory = "Purging App & System Cache..."
+                                        } else if (p < 50) {
+                                            activeCleaningCategory = "Deleting Log & Temporary Files..."
+                                        } else if (p < 75) {
+                                            activeCleaningCategory = "Removing Obsolete APK Installers..."
+                                        } else {
+                                            activeCleaningCategory = "Scrubbing Residual App Folders..."
+                                        }
+                                        
+                                        currentFreedBytes = (totalBytes * (p / 100f)).toLong()
+                                        delay(40)
+                                    }
+                                    
                                     val result = junkCleanerEngine.cleanJunkFiles(scannedCategories)
-                                    delay(1500)
                                     isCleaning = false
                                     scannedCategories = scannedCategories.map { it.copy(sizeBytes = 0L, filesCount = 0) }
                                     val freedMb = result.freedBytes / (1024 * 1024L)
@@ -398,6 +420,114 @@ fun FileCenterScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // Premium Full-Screen Cleaning Overlay
+        val infiniteTransition = rememberInfiniteTransition(label = "cleaning")
+        val rotationAngle by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1500, easing = LinearEasing)
+            ),
+            label = "rotation"
+        )
+
+        AnimatedVisibility(
+            visible = isCleaning,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF070B18).copy(alpha = 0.95f))
+                    .clickable(enabled = false) {}, // consume clicks
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    // Spinning Radar / Gauge
+                    Box(
+                        modifier = Modifier
+                            .size(220.dp)
+                            .background(Color(0xFF0F172A), CircleShape)
+                            .border(3.dp, Color(0xFF1E293B), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Rotating background sweep
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(12.dp)
+                                .rotate(rotationAngle)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .align(Alignment.TopCenter)
+                                    .background(Color(0xFFD97706), CircleShape)
+                            )
+                        }
+
+                        // Circular Progress
+                        CircularProgressIndicator(
+                            progress = { cleanProgress / 100f },
+                            modifier = Modifier.fillMaxSize().padding(8.dp),
+                            color = Color(0xFFD97706),
+                            strokeWidth = 6.dp,
+                            trackColor = Color(0xFF1E293B)
+                        )
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.CleaningServices,
+                                contentDescription = null,
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "$cleanProgress%",
+                                color = Color.White,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(30.dp))
+
+                    Text(
+                        text = "CLEANING STORAGE",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = activeCleaningCategory,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Freed: ${formatBytes(currentFreedBytes)}",
+                        color = Color(0xFF00E5FF),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }
