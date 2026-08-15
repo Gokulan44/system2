@@ -11,7 +11,7 @@ class ConnectionManager(
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: StateFlow<ConnectionState> = _connectionState
 
-    suspend fun connect(targetIp: String, port: Int, deviceId: str = "") {
+    suspend fun connect(targetIp: String, port: Int, deviceId: String = "") {
         _connectionState.value = ConnectionState.Connecting
         val localSuccess = localConnection.connect(targetIp, port)
         if (localSuccess) {
