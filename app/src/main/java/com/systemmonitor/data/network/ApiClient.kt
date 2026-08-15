@@ -172,6 +172,23 @@ class ApiClient @Inject constructor(
         }
     }
 
+    suspend fun getDeviceLockStatus(baseUrl: String, token: String?): NetworkResult<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val reqBuilder = Request.Builder().url("$baseUrl/api/status").get()
+            if (!token.isNullOrEmpty()) reqBuilder.addHeader("Authorization", "Bearer $token")
+            val response = client.newCall(reqBuilder.build()).execute()
+            val body = response.body?.string() ?: ""
+            if (response.isSuccessful && body.isNotEmpty()) {
+                val obj = JSONObject(body)
+                NetworkResult.Success(obj.optBoolean("locked", true))
+            } else {
+                NetworkResult.Error("HTTP Error: ${response.code}")
+            }
+        } catch (e: Exception) {
+            NetworkResult.Error(e.message ?: "Failed to get lock status", e)
+        }
+    }
+
     suspend fun approveResource(
         baseUrl: String,
         token: String?,

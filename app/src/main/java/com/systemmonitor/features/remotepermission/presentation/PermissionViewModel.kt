@@ -64,8 +64,8 @@ class PermissionViewModel @Inject constructor(
         }
     }
 
-    fun initSignatureForLaptop(laptopId: String): Signature {
-        return keyStoreManager.initSignature(laptopId)
+    fun initSignatureForLaptop(laptopId: String, useBiometric: Boolean = true): Signature {
+        return keyStoreManager.initSignature(laptopId, useBiometric)
     }
 
     fun approveRequest(request: PermissionRequest, signatureInstance: Signature, verificationMethod: String) {

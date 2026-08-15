@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -261,6 +262,36 @@ fun DeviceCenterScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    val healthChecks = androidx.compose.runtime.remember(
+                        state.cpuPercent,
+                        state.ramPercent,
+                        state.storagePercent,
+                        state.batteryPercent
+                    ) {
+                        mutableListOf<Pair<String, Boolean>>().apply {
+                            if (state.cpuPercent > 80) {
+                                add("High CPU Load (${state.cpuPercent}%)" to false)
+                            } else {
+                                add("CPU Status Healthy" to true)
+                            }
+                            if (state.ramPercent > 80) {
+                                add("Low Free RAM (${state.ramPercent}%)" to false)
+                            } else {
+                                add("RAM Allocation Good" to true)
+                            }
+                            if (state.storagePercent > 90) {
+                                add("Low Storage (${state.storagePercent}%)" to false)
+                            } else {
+                                add("Storage Space Safe" to true)
+                            }
+                            if (state.batteryPercent < 20) {
+                                add("Low Battery Level (${state.batteryPercent}%)" to false)
+                            } else {
+                                add("Battery Status Healthy" to true)
+                            }
+                        }
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -275,11 +306,12 @@ fun DeviceCenterScreen(
                         )
 
                         Column {
-                            HealthCheckRow("System Stable")
-                            Spacer(modifier = Modifier.height(6.dp))
-                            HealthCheckRow("No Issues Found")
-                            Spacer(modifier = Modifier.height(6.dp))
-                            HealthCheckRow("Optimized")
+                            healthChecks.forEachIndexed { index, check ->
+                                HealthCheckRow(check.first, check.second)
+                                if (index < healthChecks.size - 1) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                }
+                            }
 
                             Spacer(modifier = Modifier.height(12.dp))
 
@@ -326,9 +358,14 @@ private fun HardwareTile(
 }
 
 @Composable
-private fun HealthCheckRow(label: String) {
+private fun HealthCheckRow(label: String, isHealthy: Boolean = true) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF00E676), modifier = Modifier.size(14.dp))
+        Icon(
+            imageVector = if (isHealthy) Icons.Default.CheckCircle else Icons.Default.Warning,
+            contentDescription = null,
+            tint = if (isHealthy) Color(0xFF00E676) else Color(0xFFEF4444),
+            modifier = Modifier.size(14.dp)
+        )
         Spacer(modifier = Modifier.width(6.dp))
         Text(text = label, color = Color.White, fontSize = 12.sp)
     }

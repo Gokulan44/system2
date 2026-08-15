@@ -16,6 +16,7 @@ class NotificationChannelManager @Inject constructor(
         const val CHANNEL_PERMISSION_ID = "channel_permission_requests"
         const val CHANNEL_DOWNLOAD_ID = "channel_download_results"
         const val CHANNEL_INTRUSION_ID = "channel_intrusion_alerts"
+        const val CHANNEL_TELEMETRY_ID = "channel_telemetry_alerts"
     }
 
     fun createNotificationChannels() {
@@ -51,9 +52,19 @@ class NotificationChannelManager @Inject constructor(
                 enableVibration(true)
             }
 
+            // 4. Telemetry Alerts channel (Default priority)
+            val telemetryChannel = NotificationChannel(
+                CHANNEL_TELEMETRY_ID,
+                "Device Telemetry & Settings",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifies you when battery is low, storage is full, or system metrics require attention"
+            }
+
             manager.createNotificationChannel(permChannel)
             manager.createNotificationChannel(downloadChannel)
             manager.createNotificationChannel(intrusionChannel)
+            manager.createNotificationChannel(telemetryChannel)
         }
     }
 }

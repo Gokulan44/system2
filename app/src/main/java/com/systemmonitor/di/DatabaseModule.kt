@@ -70,6 +70,15 @@ object DatabaseModule {
     fun provideIntrusionEventDao(db: AppDatabase): com.systemmonitor.features.intrusion.data.dao.IntrusionEventDao = db.intrusionEventDao()
 
     @Provides
+    fun provideVaultFileDao(db: AppDatabase): com.systemmonitor.vault.database.VaultFileDao = db.vaultFileDao()
+
+    @Provides
+    fun provideVaultFolderDao(db: AppDatabase): com.systemmonitor.vault.database.VaultFolderDao = db.vaultFolderDao()
+
+    @Provides
+    fun provideVaultAuditDao(db: AppDatabase): com.systemmonitor.vault.database.VaultAuditDao = db.vaultAuditDao()
+
+    @Provides
     @Singleton
     fun provideAppLockDatabase(@ApplicationContext context: Context): AppLockDataDatabase =
         Room.databaseBuilder(context, AppLockDataDatabase::class.java, "app_lock.db")

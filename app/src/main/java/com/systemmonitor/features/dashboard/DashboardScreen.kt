@@ -375,7 +375,7 @@ private fun GridMetricsSection(
                 modifier = Modifier.weight(1f)
             )
             BatteryCard(
-                onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.DeviceCenter) },
+                onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.BatteryAnalysis) },
                 modifier = Modifier.weight(1f)
             )
             StorageCard(
@@ -841,6 +841,21 @@ private fun QuickAccessSection(
                     onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.Alerts) },
                     modifier = Modifier.weight(1f)
                 )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickAccessItem(
+                    icon = Icons.Default.Lock,
+                    label = "Secure Vault",
+                    bgColor = Color(0xFFEC4899),
+                    onClick = { onNavigateTo(com.systemmonitor.navigation.NavDestination.SecureVault) },
+                    modifier = Modifier.weight(1f)
+                )
+                Box(modifier = Modifier.weight(1f).height(72.dp)) {}
+                Box(modifier = Modifier.weight(1f).height(72.dp)) {}
             }
         }
     }

@@ -21,4 +21,4 @@ class AppLockBootReceiver : BroadcastReceiver() {
             }
         }
     }
-}
+} 

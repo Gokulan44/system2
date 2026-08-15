@@ -39,7 +39,8 @@ data class ScanUiState(
     val progress: Int = 0,
     val currentStepText: String = "Initializing Scanner...",
     val isScanning: Boolean = true,
-    val completedScan: SecurityScan? = null
+    val completedScan: SecurityScan? = null,
+    val detectedThreats: List<com.systemmonitor.features.security.domain.model.ThreatInfo> = emptyList()
 )
 
 @HiltViewModel
@@ -63,14 +64,15 @@ class SecurityScanViewModel @Inject constructor(
         scanStarted = true
 
         viewModelScope.launch {
-            _uiState.update { it.copy(progress = 0, isScanning = true, completedScan = null) }
+            _uiState.update { it.copy(progress = 0, isScanning = true, completedScan = null, detectedThreats = emptyList()) }
 
             // Single-pass scan — progress AND threats collected in one Flow
             securityScanner.executeFullScan().collect { scanProgress ->
                 _uiState.update {
                     it.copy(
                         progress = scanProgress.percent,
-                        currentStepText = scanProgress.stepText
+                        currentStepText = scanProgress.stepText,
+                        detectedThreats = scanProgress.collectedThreats
                     )
                 }
 
@@ -131,7 +133,10 @@ fun SecurityScanScreen(
             Spacer(modifier = Modifier.height(30.dp))
 
             // Animated Radar Scanner View
-            ScanAnimationView(isScanning = state.isScanning)
+            ScanAnimationView(
+                isScanning = state.isScanning,
+                threats = state.detectedThreats
+            )
 
             Spacer(modifier = Modifier.height(30.dp))
 

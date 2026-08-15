@@ -70,9 +70,25 @@ class LaptopViewModel @Inject constructor(
 
                 if (result is NetworkResult.Success) {
                     _connectionModeSuggestion.value = null
-                    if (currentLaptop.status != LaptopStatus.ONLINE) {
-                        laptopRepository.updateLaptopStatus(currentLaptop.id, LaptopStatus.ONLINE)
-                        _selectedLaptop.value = currentLaptop.copy(status = LaptopStatus.ONLINE)
+                    val telemetryLocked = result.data.isLocked
+                    val statusChanged = currentLaptop.status != LaptopStatus.ONLINE
+                    val lockChanged = currentLaptop.isLocked != telemetryLocked
+                    
+                    if (statusChanged || lockChanged) {
+                        if (statusChanged) {
+                            laptopRepository.updateLaptopStatus(currentLaptop.id, LaptopStatus.ONLINE)
+                        }
+                        if (lockChanged) {
+                            laptopRepository.updateLaptopLockStatus(currentLaptop.id, telemetryLocked)
+                            val method = "PHYSICAL"
+                            val eventResult = if (telemetryLocked) "LOCKED" else "SUCCESS"
+                            val reason = if (telemetryLocked) "Workstation locked physically" else "Workstation unlocked physically"
+                            laptopRepository.logUnlockAttempt(currentLaptop.id, method, eventResult, reason)
+                        }
+                        _selectedLaptop.value = currentLaptop.copy(
+                            status = LaptopStatus.ONLINE,
+                            isLocked = telemetryLocked
+                        )
                     }
                 } else if (result is NetworkResult.Error) {
                     if (currentLaptop.connectionMode == ConnectionMode.LOCAL) {
@@ -311,7 +327,9 @@ class LaptopViewModel @Inject constructor(
                 val res = laptopRepository.submitUnlockSignature(laptop, challenge, signatureBase64, publicKeyBase64)
                 if (res is NetworkResult.Success && res.data) {
                     _unlockState.value = NetworkResult.Success(true)
-                    laptopRepository.logUnlockAttempt(laptop.id, method, "SUCCESS")
+                    laptopRepository.updateLaptopLockStatus(laptop.id, false)
+                    laptopRepository.logUnlockAttempt(laptop.id, method, "SUCCESS", "Unlocked via mobile app")
+                    _selectedLaptop.value = laptop.copy(isLocked = false)
                 } else {
                     val errMsg = (res as? NetworkResult.Error)?.message ?: "Verification rejected by Laptop"
                     _unlockState.value = NetworkResult.Error(errMsg)
@@ -334,7 +352,9 @@ class LaptopViewModel @Inject constructor(
                 val res = laptopRepository.submitUnlockSignature(laptop, challenge, dummySignature, "PIN_VERIFIED")
                 if (res is NetworkResult.Success) {
                     _unlockState.value = NetworkResult.Success(true)
-                    laptopRepository.logUnlockAttempt(laptop.id, "PIN", "SUCCESS")
+                    laptopRepository.updateLaptopLockStatus(laptop.id, false)
+                    laptopRepository.logUnlockAttempt(laptop.id, "PIN", "SUCCESS", "Unlocked via mobile PIN")
+                    _selectedLaptop.value = laptop.copy(isLocked = false)
                 } else {
                     _unlockState.value = NetworkResult.Error("PIN verification rejected by laptop")
                     laptopRepository.logUnlockAttempt(laptop.id, "PIN", "FAILED", "Incorrect PIN signature")

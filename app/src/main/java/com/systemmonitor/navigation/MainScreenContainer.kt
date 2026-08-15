@@ -96,6 +96,8 @@ import com.systemmonitor.features.wellbeing.DigitalWellbeingScreen
 import com.systemmonitor.viewmodel.AuthViewModel
 import com.systemmonitor.viewmodel.LaptopViewModel
 import com.systemmonitor.viewmodel.ScreenViewModel
+import com.systemmonitor.vault.presentation.VaultScreen
+import com.systemmonitor.features.settings.power.BatteryAnalysisScreen
 import com.systemmonitor.domain.model.ConnectionMode
 
 import com.systemmonitor.features.settings.AboutScreen
@@ -112,6 +114,7 @@ import com.systemmonitor.features.settings.ReportSettingsScreen
 import com.systemmonitor.features.settings.ScreenSettingsScreen
 import com.systemmonitor.features.settings.SettingsScreen
 import com.systemmonitor.features.settings.SettingsViewModel
+import com.systemmonitor.features.dashboard.DashboardViewModel
 import com.systemmonitor.features.settings.monitoring.MonitoringSettingsScreen
 import com.systemmonitor.features.settings.notifications.NotificationSettingsScreen
 import com.systemmonitor.features.settings.power.PowerSettingsScreen
@@ -131,6 +134,7 @@ fun MainScreenContainer(
     resourceViewModel: ResourceViewModel = hiltViewModel(),
     intrusionViewModel: IntrusionViewModel = hiltViewModel(),
     resolveActionsViewModel: ResolveActionsViewModel = hiltViewModel(),
+    dashboardViewModel: DashboardViewModel = hiltViewModel(),
     initialRoute: String? = null
 ) {
     var currentDestination by remember { mutableStateOf<NavDestination>(NavDestination.Home) }
@@ -318,6 +322,12 @@ fun MainScreenContainer(
                     screenViewModel = screenViewModel,
                     onBackClick = { currentDestination = NavDestination.LaptopDetails }
                 )
+                is NavDestination.SecureVault -> VaultScreen(
+                    onBackClick = { currentDestination = NavDestination.Home }
+                )
+                is NavDestination.BatteryAnalysis -> BatteryAnalysisScreen(
+                    onBackClick = { currentDestination = NavDestination.Home }
+                )
                 is NavDestination.Processes -> ProcessesScreen(
                     laptopViewModel = laptopViewModel,
                     onBackClick = { currentDestination = NavDestination.LaptopDetails }
@@ -344,6 +354,7 @@ fun MainScreenContainer(
                                 currentDestination = NavDestination.ResolveActions
                             },
                             onBackToDashboard = {
+                                dashboardViewModel.loadRealSystemData()
                                 currentDestination = NavDestination.SecurityCenter
                             }
                         )
@@ -371,6 +382,7 @@ fun MainScreenContainer(
                                 resolveActionsViewModel.resolveThreat(threat.id, scanId, action) { updatedScan ->
                                     lastScanResult = updatedScan
                                     selectedThreat = null
+                                    dashboardViewModel.loadRealSystemData()
                                     currentDestination = NavDestination.SecurityReport
                                 }
                             },
@@ -492,6 +504,7 @@ fun MainScreenContainer(
                     onBackClick = { currentDestination = NavDestination.Profile }
                 )
                 is NavDestination.ProfileNotifications -> ProfileNotificationSettingsScreen(
+                    viewModel = settingsViewModel,
                     onBackClick = { currentDestination = NavDestination.Profile }
                 )
                 is NavDestination.ProfilePrivacy -> ProfilePrivacyScreen(

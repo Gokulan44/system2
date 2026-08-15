@@ -19,13 +19,29 @@ class SystemMonitorApplication : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
 
     override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
+        get() = Configuration.Builder().apply {
+            if (::workerFactory.isInitialized) {
+                setWorkerFactory(workerFactory)
+            }
+        }.build()
 
     override fun onCreate() {
         super.onCreate()
         scheduleBackgroundWork()
+        cleanupVaultTempFiles()
+    }
+
+    private fun cleanupVaultTempFiles() {
+        val vaultTempDir = java.io.File(cacheDir, "vault/temp")
+        if (vaultTempDir.exists()) {
+            Thread {
+                try {
+                    vaultTempDir.listFiles()?.forEach { it.delete() }
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }.start()
+        }
     }
 
     private fun scheduleBackgroundWork() {

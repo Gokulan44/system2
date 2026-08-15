@@ -38,6 +38,9 @@ interface LaptopDao {
 
     @Query("UPDATE laptops SET status = :status, lastSeen = :lastSeen WHERE id = :laptopId")
     suspend fun updateLaptopStatus(laptopId: String, status: String, lastSeen: Long)
+
+    @Query("UPDATE laptops SET isLocked = :isLocked WHERE id = :laptopId")
+    suspend fun updateLaptopLockStatus(laptopId: String, isLocked: Boolean)
 }
 
 

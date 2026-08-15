@@ -18,21 +18,59 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.systemmonitor.features.settings.SettingsViewModel
+import com.systemmonitor.features.settings.SettingsEvent
+import androidx.hilt.navigation.compose.hiltViewModel
+
 @Composable
-fun ProfileNotificationSettingsScreen(onBackClick: () -> Unit = {}) {
-    var securityAlerts by remember { mutableStateOf(true) }
-    var scanCompleted by remember { mutableStateOf(true) }
-    var deviceConnected by remember { mutableStateOf(false) }
-    var batteryAlerts by remember { mutableStateOf(true) }
-    var appLockAlerts by remember { mutableStateOf(true) }
+fun ProfileNotificationSettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    onBackClick: () -> Unit = {}
+) {
+    val state by viewModel.uiState.collectAsState()
+    val notif = state.settings.notifications
 
     ProfileSubScreenBase("Notification Preferences", onBackClick) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            NotificationToggleItem("Security & Threat Alerts", "Get notified immediately when threats are found", securityAlerts) { securityAlerts = it }
-            NotificationToggleItem("Scan Completed Alerts", "Notify when a full device scan completes", scanCompleted) { scanCompleted = it }
-            NotificationToggleItem("New Device Pairings", "Get alerts when a laptop pairs with this device", deviceConnected) { deviceConnected = it }
-            NotificationToggleItem("Battery & Power Alerts", "Notify on critical battery levels", batteryAlerts) { batteryAlerts = it }
-            NotificationToggleItem("App Lock Notifications", "Show persistent status notifications", appLockAlerts) { appLockAlerts = it }
+            NotificationToggleItem(
+                title = "Security & Threat Alerts",
+                description = "Get notified immediately when threats are found",
+                checked = notif.securityAlerts
+            ) {
+                viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(securityAlerts = it))))
+            }
+
+            NotificationToggleItem(
+                title = "Scan Completed Alerts",
+                description = "Notify when a full device scan completes",
+                checked = notif.reportNotifications
+            ) {
+                viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(reportNotifications = it))))
+            }
+
+            NotificationToggleItem(
+                title = "New Device Pairings",
+                description = "Get alerts when a laptop pairs with this device",
+                checked = notif.deviceAlerts
+            ) {
+                viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(deviceAlerts = it))))
+            }
+
+            NotificationToggleItem(
+                title = "Battery & Power Alerts",
+                description = "Notify on critical battery levels",
+                checked = notif.batteryAlerts
+            ) {
+                viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(batteryAlerts = it))))
+            }
+
+            NotificationToggleItem(
+                title = "App Lock Notifications",
+                description = "Show persistent status notifications",
+                checked = notif.appUsageAlerts
+            ) {
+                viewModel.onEvent(SettingsEvent.UpdateSettings(state.settings.copy(notifications = notif.copy(appUsageAlerts = it))))
+            }
         }
     }
 }

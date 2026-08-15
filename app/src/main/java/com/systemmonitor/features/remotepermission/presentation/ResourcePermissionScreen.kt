@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -268,6 +269,41 @@ fun ResourcePermissionScreen(
                         }
                     }
 
+                    // Selector for verification method
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF1E293B).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(12.dp))
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val methods = listOf("BIOMETRIC", "PIN")
+                        methods.forEach { method ->
+                            val selected = authMethod == method
+                            val btnBg = if (selected) Color(0xFF00E5FF) else Color.Transparent
+                            val btnFg = if (selected) Color.Black else Color.White
+                            
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(btnBg)
+                                    .clickable { authMethod = method }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (method == "BIOMETRIC") "Biometric (Fingerprint)" else "App PIN",
+                                    color = btnFg,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+
                     // Action buttons
                     Row(
                         modifier = Modifier
@@ -345,10 +381,12 @@ fun ResourcePermissionScreen(
                                 Button(
                                     onClick = {
                                         showPinPrompt = false
-                                        // Simulate signature approval in fallback cases
-                                        val mockSignature = Signature.getInstance("SHA256withECDSA")
-                                        // Since we can't unlock key without biometric, we fallback to signing challenge mock-style
-                                        viewModel.approveRequest(request, mockSignature, "PIN")
+                                        try {
+                                            val signature = viewModel.initSignatureForLaptop(request.laptopId, useBiometric = false)
+                                            viewModel.approveRequest(request, signature, "PIN")
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "PIN Auth Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 ) {
                                     Text("Approve")

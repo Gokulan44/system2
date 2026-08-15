@@ -16,5 +16,6 @@ data class Laptop(
     val connectionMode: ConnectionMode = ConnectionMode.LOCAL,
     val accessToken: String? = null,
     val lastSeen: Long = System.currentTimeMillis(),
-    val macAddress: String? = null
+    val macAddress: String? = null,
+    val isLocked: Boolean = true
 )

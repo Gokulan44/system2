@@ -90,8 +90,8 @@ fun DownloadStatusScreen(
             
             while (isSimulating) {
                 resourceViewModel.loadResultAndScan(requestId)
-                val res = downloadResult
-                val scan = securityScanResult
+                val res = resourceViewModel.downloadResult.value
+                val scan = resourceViewModel.securityScanResult.value
                 if (res != null) {
                     when (res.status) {
                         "PENDING" -> {
@@ -206,8 +206,71 @@ fun DownloadStatusScreen(
                     )
                 } else {
                     // Result Panels matching user prompt requirements
+                    val download = downloadResult
                     val scan = securityScanResult
-                    if (scan != null && scan.status == "SAFE") {
+                    if (download != null && download.status == "REJECTED") {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A).copy(alpha = 0.9f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFEF4444).copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint = Color(0xFFEF4444),
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Request Rejected",
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "⚠ Download was rejected by the laptop user",
+                                    color = Color(0xFFEF4444),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(modifier = Modifier.height(20.dp))
+                                HorizontalDivider(color = Color(0xFF1E293B))
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                FileScanDetail(label = "Resource", value = resourceName)
+                                FileScanDetail(label = "Status", value = "Rejected", valueColor = Color(0xFFEF4444))
+
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Button(
+                                    onClick = onBackClick,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("BACK TO FILE CENTER", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    } else if (scan != null && scan.status == "SAFE") {
                         // SAFE Result Card
                         Card(
                             modifier = Modifier

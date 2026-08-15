@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ScanAnimationView(
     isScanning: Boolean,
+    threats: List<com.systemmonitor.features.security.domain.model.ThreatInfo>,
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "RadarSweep")
@@ -185,31 +186,55 @@ fun ScanAnimationView(
                 }
 
                 // 6. Draw Threat Blips (Faintly detected active items)
-                // Blip 1: Top Right Sector
-                val blip1Pos = Offset(center.x + baseRadius * 0.8f, center.y - baseRadius * 0.7f)
-                drawCircle(
-                    color = Color(0xFFEF4444).copy(alpha = blip1Alpha),
-                    radius = 4.dp.toPx(),
-                    center = blip1Pos
-                )
-                drawCircle(
-                    color = Color(0xFFEF4444).copy(alpha = blip1Alpha * 0.3f),
-                    radius = 10.dp.toPx(),
-                    center = blip1Pos
-                )
+                if (threats.isEmpty()) {
+                    // Draw normal search decoy green dots to look premium
+                    val blip1Pos = Offset(center.x + baseRadius * 0.8f, center.y - baseRadius * 0.7f)
+                    drawCircle(
+                        color = Color(0xFF10B981).copy(alpha = blip1Alpha * 0.5f),
+                        radius = 4.dp.toPx(),
+                        center = blip1Pos
+                    )
+                    drawCircle(
+                        color = Color(0xFF10B981).copy(alpha = blip1Alpha * 0.15f),
+                        radius = 10.dp.toPx(),
+                        center = blip1Pos
+                    )
 
-                // Blip 2: Bottom Left Sector
-                val blip2Pos = Offset(center.x - baseRadius * 0.9f, center.y + baseRadius * 0.5f)
-                drawCircle(
-                    color = Color(0xFFF59E0B).copy(alpha = blip2Alpha),
-                    radius = 4.dp.toPx(),
-                    center = blip2Pos
-                )
-                drawCircle(
-                    color = Color(0xFFF59E0B).copy(alpha = blip2Alpha * 0.3f),
-                    radius = 10.dp.toPx(),
-                    center = blip2Pos
-                )
+                    val blip2Pos = Offset(center.x - baseRadius * 0.9f, center.y + baseRadius * 0.5f)
+                    drawCircle(
+                        color = Color(0xFF10B981).copy(alpha = blip2Alpha * 0.5f),
+                        radius = 4.dp.toPx(),
+                        center = blip2Pos
+                    )
+                    drawCircle(
+                        color = Color(0xFF10B981).copy(alpha = blip2Alpha * 0.15f),
+                        radius = 10.dp.toPx(),
+                        center = blip2Pos
+                    )
+                } else {
+                    // Draw REAL threat blips detected so far in bright red
+                    threats.forEach { threat ->
+                        val hash = threat.packageName?.hashCode() ?: threat.id.hashCode()
+                        val angleRad = Math.toRadians((hash % 360).toDouble().let { if (it < 0) it + 360 else it })
+                        val distanceFactor = 0.4f + (Math.abs(hash % 5) / 10f)
+                        val blipRadius = baseRadius * distanceFactor
+
+                        val blipX = center.x + (blipRadius * Math.cos(angleRad)).toFloat()
+                        val blipY = center.y + (blipRadius * Math.sin(angleRad)).toFloat()
+                        val blipPos = Offset(blipX, blipY)
+
+                        drawCircle(
+                            color = Color(0xFFEF4444).copy(alpha = blip1Alpha),
+                            radius = 5.dp.toPx(),
+                            center = blipPos
+                        )
+                        drawCircle(
+                            color = Color(0xFFEF4444).copy(alpha = blip1Alpha * 0.3f),
+                            radius = 12.dp.toPx(),
+                            center = blipPos
+                        )
+                    }
+                }
             }
         }
 

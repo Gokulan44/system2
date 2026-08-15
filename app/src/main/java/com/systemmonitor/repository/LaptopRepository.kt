@@ -46,7 +46,28 @@ class LaptopRepository @Inject constructor(
                         } else {
                             LaptopStatus.OFFLINE
                         }
-                        if (laptop.status != newStatus) {
+                        
+                        var lockChanged = false
+                        var currentLockState = laptop.isLocked
+                        
+                        if (newStatus == LaptopStatus.ONLINE) {
+                            val lockRes = connectionManager.getLockStatus(laptop)
+                            if (lockRes is NetworkResult.Success) {
+                                val agentLocked = lockRes.data
+                                if (laptop.isLocked != agentLocked) {
+                                    currentLockState = agentLocked
+                                    lockChanged = true
+                                    laptopDao.updateLaptopLockStatus(laptop.id, agentLocked)
+                                    // Log status change
+                                    val method = "PHYSICAL"
+                                    val resultText = if (agentLocked) "LOCKED" else "SUCCESS"
+                                    val reasonText = if (agentLocked) "Workstation locked physically" else "Workstation unlocked physically"
+                                    logUnlockAttempt(laptop.id, method, resultText, reasonText)
+                                }
+                            }
+                        }
+
+                        if (laptop.status != newStatus || lockChanged) {
                             laptopDao.updateLaptopStatus(laptop.id, newStatus.name, System.currentTimeMillis())
                         }
                     }
@@ -152,7 +173,8 @@ class LaptopRepository @Inject constructor(
             .getOrDefault(ConnectionMode.LOCAL),
         accessToken = accessToken,
         lastSeen = lastSeen,
-        macAddress = macAddress
+        macAddress = macAddress,
+        isLocked = isLocked
     )
 
     private fun Laptop.toEntity() = LaptopEntity(
@@ -166,7 +188,8 @@ class LaptopRepository @Inject constructor(
         connectionMode = connectionMode.name,
         accessToken = accessToken,
         lastSeen = lastSeen,
-        macAddress = macAddress
+        macAddress = macAddress,
+        isLocked = isLocked
     )
 
     suspend fun getUnlockChallenge(laptop: Laptop): NetworkResult<String> {
@@ -195,5 +218,9 @@ class LaptopRepository @Inject constructor(
 
     fun getUnlockHistory(laptopId: String): Flow<List<com.systemmonitor.local.database.entity.UnlockHistoryEntity>> {
         return unlockHistoryDao.getHistoryForLaptop(laptopId)
+    }
+
+    suspend fun updateLaptopLockStatus(laptopId: String, isLocked: Boolean) {
+        laptopDao.updateLaptopLockStatus(laptopId, isLocked)
     }
 }

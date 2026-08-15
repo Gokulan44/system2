@@ -98,7 +98,8 @@ object ApiClientParser {
             storage = storage,
             battery = bat,
             network = net,
-            uptimeSeconds = root.optDouble("uptime_seconds", 0.0)
+            uptimeSeconds = root.optDouble("uptime_seconds", 0.0),
+            isLocked = root.optBoolean("locked", true)
         )
     }
 

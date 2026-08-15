@@ -184,6 +184,16 @@ class RemoteRelayManager @Inject constructor(
         }
     }
 
+    suspend fun fetchRemoteLockStatus(deviceId: String): NetworkResult<Boolean> {
+        return try {
+            val snap = firestore.collection(RELAY_COLLECTION).document(deviceId).get().await()
+            val isLocked = snap.getBoolean("isLocked") ?: true
+            NetworkResult.Success(isLocked)
+        } catch (e: Exception) {
+            NetworkResult.Error(refineFirebaseExceptionMessage(e, "Remote lock status check failed"), e)
+        }
+    }
+
     /**
      * Look up the pairing code in Firestore to retrieve the remote device details.
      */

@@ -1,11 +1,7 @@
 package com.systemmonitor.features.files
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
@@ -27,13 +24,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileCenterScreen(
     dashboardViewModel: DashboardViewModel = hiltViewModel()
@@ -58,6 +59,7 @@ fun FileCenterScreen(
     var scanProgress by remember { mutableStateOf(0) }
     var scannedCategories by remember { mutableStateOf<List<JunkCategory>>(emptyList()) }
     var isCleaning by remember { mutableStateOf(false) }
+    var showSuccessSplash by remember { mutableStateOf(false) }
     var cleanProgress by remember { mutableStateOf(0) }
     var activeCleaningCategory by remember { mutableStateOf("") }
     var currentFreedBytes by remember { mutableStateOf(0L) }
@@ -81,43 +83,41 @@ fun FileCenterScreen(
     var docCount by remember { mutableStateOf(324) }
     var docSizeText by remember { mutableStateOf("2.1 GB") }
 
-    // Run scanning flow
+    // Run scanning flow unconditionally
     LaunchedEffect(hasAllFilesPermission) {
-        if (hasAllFilesPermission) {
-            isScanning = true
-            junkCleanerEngine.scanJunkFiles().collect { (progress, cats) ->
-                scanProgress = progress
-                scannedCategories = cats
-                if (progress == 100) {
-                    isScanning = false
-                }
+        isScanning = true
+        junkCleanerEngine.scanJunkFiles().collect { (progress, cats) ->
+            scanProgress = progress
+            scannedCategories = cats
+            if (progress == 100) {
+                isScanning = false
             }
-            
-            // Load real category counts from MediaStore queries
-            withContext(Dispatchers.IO) {
-                val img = junkCleanerEngine.queryCategoryStats("image")
-                if (img.count > 0) {
-                    imageCount = img.count
-                    imageSizeText = formatBytes(img.sizeBytes)
-                }
+        }
+        
+        // Load real category counts from MediaStore queries
+        withContext(Dispatchers.IO) {
+            val img = junkCleanerEngine.queryCategoryStats("image")
+            if (img.count > 0) {
+                imageCount = img.count
+                imageSizeText = formatBytes(img.sizeBytes)
+            }
 
-                val vid = junkCleanerEngine.queryCategoryStats("video")
-                if (vid.count > 0) {
-                    videoCount = vid.count
-                    videoSizeText = formatBytes(vid.sizeBytes)
-                }
+            val vid = junkCleanerEngine.queryCategoryStats("video")
+            if (vid.count > 0) {
+                videoCount = vid.count
+                videoSizeText = formatBytes(vid.sizeBytes)
+            }
 
-                val aud = junkCleanerEngine.queryCategoryStats("audio")
-                if (aud.count > 0) {
-                    audioCount = aud.count
-                    audioSizeText = formatBytes(aud.sizeBytes)
-                }
+            val aud = junkCleanerEngine.queryCategoryStats("audio")
+            if (aud.count > 0) {
+                audioCount = aud.count
+                audioSizeText = formatBytes(aud.sizeBytes)
+            }
 
-                val doc = junkCleanerEngine.queryCategoryStats("document")
-                if (doc.count > 0) {
-                    docCount = doc.count
-                    docSizeText = formatBytes(doc.sizeBytes)
-                }
+            val doc = junkCleanerEngine.queryCategoryStats("document")
+            if (doc.count > 0) {
+                docCount = doc.count
+                docSizeText = formatBytes(doc.sizeBytes)
             }
         }
     }
@@ -127,20 +127,9 @@ fun FileCenterScreen(
 
     val isAmoled = com.systemmonitor.LocalDarkMode.current
     val bgGradient = if (isAmoled) {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF000000),
-                Color(0xFF000000)
-            )
-        )
+        Brush.verticalGradient(colors = listOf(Color(0xFF000000), Color(0xFF000000)))
     } else {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF080C16),
-                Color(0xFF0B132B),
-                Color(0xFF070B18)
-            )
-        )
+        Brush.verticalGradient(colors = listOf(Color(0xFF080C16), Color(0xFF0B132B), Color(0xFF070B18)))
     }
 
     Box(
@@ -278,6 +267,7 @@ fun FileCenterScreen(
                             onClick = {
                                 scope.launch {
                                     isCleaning = true
+                                    showSuccessSplash = false
                                     cleanSuccessMessage = null
                                     
                                     val totalBytes = junkSizeBytes
@@ -296,40 +286,37 @@ fun FileCenterScreen(
                                         }
                                         
                                         currentFreedBytes = (totalBytes * (p / 100f)).toLong()
-                                        delay(40)
+                                        delay(45)
                                     }
                                     
                                     val result = junkCleanerEngine.cleanJunkFiles(scannedCategories)
-                                    isCleaning = false
-                                    scannedCategories = scannedCategories.map { it.copy(sizeBytes = 0L, filesCount = 0) }
+                                    dashboardViewModel.freeStorageBytes(result.freedBytes)
+                                    
+                                    // Transition to success splash screen
+                                    showSuccessSplash = true
                                     val freedMb = result.freedBytes / (1024 * 1024L)
                                     cleanSuccessMessage = if (freedMb > 0) {
                                         "Successfully freed $freedMb MB storage!"
                                     } else {
                                         "Cache cleaned & optimized!"
                                     }
+                                    
+                                    delay(2000) // Show success splash screen for 2 seconds
+                                    isCleaning = false
+                                    showSuccessSplash = false
+                                    scannedCategories = scannedCategories.map { it.copy(sizeBytes = 0L, filesCount = 0) }
                                 }
                             },
                             enabled = !isCleaning && !isScanning && junkSizeBytes > 0,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
                             shape = RoundedCornerShape(20.dp)
                         ) {
-                            if (isCleaning) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Cleaning...", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            } else {
-                                Text(
-                                    text = if (junkSizeBytes > 0) "Clean Junk" else "Optimized",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
+                            Text(
+                                text = if (junkSizeBytes > 0) "Clean Junk" else "Optimized",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
                     }
 
@@ -422,110 +409,233 @@ fun FileCenterScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Premium Full-Screen Cleaning Overlay
-        val infiniteTransition = rememberInfiniteTransition(label = "cleaning")
-        val rotationAngle by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = LinearEasing)
-            ),
-            label = "rotation"
-        )
-
+        // Full Screen Cleaning Radar & Broom Sweep Overlay
         AnimatedVisibility(
             visible = isCleaning,
-            enter = androidx.compose.animation.fadeIn(),
-            exit = androidx.compose.animation.fadeOut()
+            enter = androidx.compose.animation.fadeIn(animationSpec = tween(300)),
+            exit = androidx.compose.animation.fadeOut(animationSpec = tween(400))
         ) {
+            val infiniteTransition = rememberInfiniteTransition(label = "cleaning_anim")
+            
+            // Sweep Sweep Broom Rotation Angle
+            val broomRotation by infiniteTransition.animateFloat(
+                initialValue = -25f,
+                targetValue = 25f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "broom_rot"
+            )
+
+            // Radar Scan Sweep Rotation Angle
+            val radarRotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1800, easing = LinearEasing)
+                ),
+                label = "radar_rot"
+            )
+
+            // Upward Floating Particles
+            val particleY1 by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2200, easing = LinearEasing)
+                ),
+                label = "p_y1"
+            )
+            val particleY2 by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2800, easing = LinearEasing)
+                ),
+                label = "p_y2"
+            )
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF070B18).copy(alpha = 0.95f))
-                    .clickable(enabled = false) {}, // consume clicks
+                    .background(Color(0xFF060914).copy(alpha = 0.98f))
+                    .clickable(enabled = false) {}, // Consume layout touches
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(24.dp)
-                ) {
-                    // Spinning Radar / Gauge
+                // Background Floating Dust Particles
+                Box(modifier = Modifier.fillMaxSize()) {
                     Box(
                         modifier = Modifier
-                            .size(220.dp)
-                            .background(Color(0xFF0F172A), CircleShape)
-                            .border(3.dp, Color(0xFF1E293B), CircleShape),
-                        contentAlignment = Alignment.Center
+                            .size(10.dp)
+                            .offset(x = 60.dp, y = (500.dp * particleY1))
+                            .alpha(particleY1)
+                            .background(Color(0xFFD97706).copy(alpha = 0.5f), CircleShape)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .offset(x = 280.dp, y = (500.dp * particleY2))
+                            .alpha(particleY2)
+                            .background(Color(0xFF00E5FF).copy(alpha = 0.4f), CircleShape)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .offset(x = 180.dp, y = (400.dp * particleY1))
+                            .alpha(particleY1)
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.3f), CircleShape)
+                    )
+                }
+
+                if (!showSuccessSplash) {
+                    // Active Cleaning Animation
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(24.dp)
                     ) {
-                        // Rotating background sweep
+                        // High Tech Radar Circle
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(12.dp)
-                                .rotate(rotationAngle)
+                                .size(230.dp)
+                                .background(Color(0xFF0F172A).copy(alpha = 0.8f), CircleShape)
+                                .border(2.dp, Color(0xFF1E293B), CircleShape),
+                            contentAlignment = Alignment.Center
                         ) {
+                            // Spinning radar background sweep
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
-                                    .align(Alignment.TopCenter)
-                                    .background(Color(0xFFD97706), CircleShape)
+                                    .fillMaxSize()
+                                    .padding(8.dp)
+                                    .rotate(radarRotation)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .align(Alignment.TopCenter)
+                                        .background(Color(0xFFD97706).copy(alpha = 0.8f), CircleShape)
+                                        .border(2.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+                                )
+                            }
+
+                            // Circular Progress Ring
+                            CircularProgressIndicator(
+                                progress = { cleanProgress / 100f },
+                                modifier = Modifier.fillMaxSize().padding(14.dp),
+                                color = Color(0xFFD97706),
+                                strokeWidth = 5.dp,
+                                trackColor = Color(0xFF1E293B)
                             )
+
+                            // Tilting Sweeping Broom Icon
+                            Box(
+                                modifier = Modifier.graphicsLayer {
+                                    rotationZ = broomRotation
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CleaningServices,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(54.dp)
+                                )
+                            }
                         }
 
-                        // Circular Progress
-                        CircularProgressIndicator(
-                            progress = { cleanProgress / 100f },
-                            modifier = Modifier.fillMaxSize().padding(8.dp),
-                            color = Color(0xFFD97706),
-                            strokeWidth = 6.dp,
-                            trackColor = Color(0xFF1E293B)
+                        Spacer(modifier = Modifier.height(35.dp))
+
+                        Text(
+                            text = "CLEANING STORAGE",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 2.sp
                         )
 
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Dynamic Category Text
+                        Text(
+                            text = activeCleaningCategory,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Scrolling active file paths deletion log simulation
+                        val activeFile = when {
+                            cleanProgress < 15 -> "/storage/emulated/0/Android/data/com.android.chrome/cache/cache_v4.db"
+                            cleanProgress < 30 -> "/storage/emulated/0/Android/data/com.systemmonitor/cache/kspDebugKotlin.jar"
+                            cleanProgress < 45 -> "/storage/emulated/0/Download/temp_284.tmp"
+                            cleanProgress < 60 -> "/storage/emulated/0/Download/logs/temp_session_182.log"
+                            cleanProgress < 75 -> "/storage/emulated/0/Download/apk/app_release_old_v2.apk"
+                            cleanProgress < 90 -> "/storage/emulated/0/Android/data/com.spotify.music/cache/storage_temp"
+                            else -> "/storage/emulated/0/DCIM/.thumbnails/temp_thumb_1823.bak"
+                        }
+
+                        Text(
+                            text = activeFile,
+                            color = Color(0xFF64748B),
+                            fontSize = 10.sp,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        Text(
+                            text = "Freed: ${formatBytes(currentFreedBytes)}",
+                            color = Color(0xFF00E5FF),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    // Satisfaction Success Splash Screen
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(90.dp)
+                                .background(Color(0xFF00E676).copy(alpha = 0.15f), CircleShape)
+                                .border(2.dp, Color(0xFF00E676), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.CleaningServices,
+                                imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = Color(0xFFD97706),
+                                tint = Color(0xFF00E676),
                                 modifier = Modifier.size(48.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "$cleanProgress%",
-                                color = Color.White,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Text(
+                            text = "STORAGE OPTIMIZED!",
+                            color = Color(0xFF00E676),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.5.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = cleanSuccessMessage ?: "Cache cleaned & optimized!",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(30.dp))
-
-                    Text(
-                        text = "CLEANING STORAGE",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = activeCleaningCategory,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text(
-                        text = "Freed: ${formatBytes(currentFreedBytes)}",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         }

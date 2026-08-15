@@ -67,8 +67,21 @@ class DashboardViewModel @Inject constructor(
     private val permissionAnalyzer: PermissionAnalyzer,
     private val securityScoreEngine: SecurityScoreEngine,
     private val powerPolicyManager: PowerPolicyManager,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val notificationManager: com.systemmonitor.features.notifications.NotificationManager,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
+    private val appLockManager: com.systemmonitor.applock.manager.AppLockManager
 ) : ViewModel() {
+
+    private var storageOffsetBytes = 0L
+    private var lastBatteryAlertTriggered = false
+    private var lastStorageAlertTriggered = false
+    private var lastNetworkStatus: String? = null
+
+    fun freeStorageBytes(bytes: Long) {
+        storageOffsetBytes += bytes
+        loadRealSystemData()
+    }
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
@@ -108,8 +121,10 @@ class DashboardViewModel @Inject constructor(
         } else 68
 
         val storage = storageMonitor.readCurrent()
-        val storagePct = if (storage.totalBytes > 0) {
-            ((storage.usedBytes.toDouble() / storage.totalBytes.toDouble()) * 100).toInt()
+        val totalStorage = storage.totalBytes
+        val usedStorage = (storage.usedBytes - storageOffsetBytes).coerceAtLeast(0L)
+        val storagePct = if (totalStorage > 0) {
+            ((usedStorage.toDouble() / totalStorage.toDouble()) * 100).toInt()
         } else 64
 
         val netStatus = if (networkMonitor.readCurrent().isConnected) "Connected" else "Disconnected"
@@ -137,13 +152,49 @@ class DashboardViewModel @Inject constructor(
         val currentAlerts = _uiState.value.alerts.toMutableList()
         currentAlerts.removeAll { it.id == "low_battery_alert" || it.id == "power_saving_alert" }
 
-        if (masterEnabled && notif.batteryAlerts) {
-            if (policy.triggerAlert) {
-                currentAlerts.add(0, AlertItem("low_battery_alert", "Low Battery Warning (${battPct}%)", "Just Now", AlertType.DANGER))
+        if (masterEnabled) {
+            // Battery Alerts
+            if (notif.batteryAlerts) {
+                if (policy.triggerAlert) {
+                    currentAlerts.add(0, AlertItem("low_battery_alert", "Low Battery Warning (${battPct}%)", "Just Now", AlertType.DANGER))
+                    if (!lastBatteryAlertTriggered) {
+                        notificationManager.sendBatteryAlert(battPct)
+                        lastBatteryAlertTriggered = true
+                    }
+                } else {
+                    lastBatteryAlertTriggered = false
+                }
+                if (policy.isPowerSavingActive) {
+                    currentAlerts.add(0, AlertItem("power_saving_alert", "Power Saving Active", "Active", AlertType.WARNING))
+                }
+            } else {
+                lastBatteryAlertTriggered = false
             }
-            if (policy.isPowerSavingActive) {
-                currentAlerts.add(0, AlertItem("power_saving_alert", "Power Saving Active", "Active", AlertType.WARNING))
+
+            // Storage Alerts
+            if (notif.storageAlerts) {
+                if (storagePct >= 90) {
+                    if (!lastStorageAlertTriggered) {
+                        notificationManager.sendStorageAlert(storagePct)
+                        lastStorageAlertTriggered = true
+                    }
+                } else {
+                    lastStorageAlertTriggered = false
+                }
+            } else {
+                lastStorageAlertTriggered = false
             }
+
+            // Network Alerts
+            if (notif.networkAlerts) {
+                if (lastNetworkStatus != null && lastNetworkStatus != netStatus) {
+                    notificationManager.sendNetworkAlert(netStatus)
+                }
+                lastNetworkStatus = netStatus
+            }
+        } else {
+            lastBatteryAlertTriggered = false
+            lastStorageAlertTriggered = false
         }
 
         _uiState.update { state ->
@@ -159,9 +210,21 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private fun scanDeviceSecurity() {
+    private suspend fun scanDeviceSecurity() {
         val apps = permissionAnalyzer.scanInstalledApps()
-        val securityResult: SecurityResult = securityScoreEngine.score(apps)
+        
+        // Filter out ignored / resolved packages
+        val prefs = context.getSharedPreferences("security_prefs", android.content.Context.MODE_PRIVATE)
+        val ignoredPackages = prefs.getStringSet("ignored_packages", emptySet()) ?: emptySet()
+        val ignoredIds = prefs.getStringSet("ignored_threat_ids", emptySet()) ?: emptySet()
+        
+        val filteredApps = apps.filter { app ->
+            val pkgIgnored = app.packageName in ignoredPackages
+            val isQuarantined = appLockManager.isAppProtected(app.packageName)
+            !pkgIgnored && !isQuarantined
+        }
+
+        val securityResult: SecurityResult = securityScoreEngine.score(filteredApps)
 
         val threats = securityResult.flaggedApps.size
         val score = securityResult.score

@@ -15,4 +15,13 @@ class GetBatteryInfoUseCase @Inject constructor(
     fun observe(): Flow<Battery?> = repository.observeLatest()
 
     suspend fun refreshNow(): Battery? = repository.captureAndStore()
+
+    suspend fun getHistory(): List<Battery> =
+        repository.getHistorySince(System.currentTimeMillis() - 24 * 60 * 60 * 1000)
+
+    suspend fun getAverageLevel(): Double? =
+        repository.getSummarySince(System.currentTimeMillis() - 24 * 60 * 60 * 1000).averageLevelPercent
+
+    suspend fun getAverageTemp(): Double? =
+        repository.getSummarySince(System.currentTimeMillis() - 24 * 60 * 60 * 1000).averageTemperatureCelsius
 }

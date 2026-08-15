@@ -96,6 +96,10 @@ fun DeviceUnlockScreen(
         } else null
     }
 
+    LaunchedEffect(Unit) {
+        laptopViewModel.startTelemetryPolling()
+    }
+
     LaunchedEffect(unlockState) {
         when (val res = unlockState) {
             is NetworkResult.Success -> {
@@ -175,15 +179,25 @@ fun DeviceUnlockScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                val statusText = if (isOnline) {
+                                    if (laptop.isLocked) "CONNECTED • LOCKED" else "CONNECTED • UNLOCKED"
+                                } else {
+                                    "OFFLINE"
+                                }
+                                val statusColor = if (isOnline) {
+                                    if (laptop.isLocked) Color(0xFFEF4444) else Color(0xFF10B981)
+                                } else {
+                                    Color(0xFFEF4444)
+                                }
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
-                                        .background(if (isOnline) Color(0xFF10B981) else Color(0xFFEF4444), CircleShape)
+                                        .background(statusColor, CircleShape)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isOnline) "CONNECTED • LOCKED" else "OFFLINE",
-                                    color = if (isOnline) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    text = statusText,
+                                    color = statusColor,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -459,8 +473,22 @@ private fun UnlockHistoryCard(log: UnlockHistoryEntity) {
     val dateStr = dateFormat.format(date)
 
     val isSuccess = log.result == "SUCCESS"
-    val statusColor = if (isSuccess) Color(0xFF10B981) else Color(0xFFEF4444)
-    val titleText = if (isSuccess) "Laptop unlocked" else "Unlock rejected"
+    val isLocked = log.result == "LOCKED"
+    val statusColor = if (isSuccess) {
+        Color(0xFF10B981)
+    } else if (isLocked) {
+        Color(0xFF94A3B8)
+    } else {
+        Color(0xFFEF4444)
+    }
+    
+    val titleText = if (isSuccess) {
+        "Laptop unlocked"
+    } else if (isLocked) {
+        "Laptop locked"
+    } else {
+        "Unlock rejected"
+    }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.5f)),
@@ -482,7 +510,13 @@ private fun UnlockHistoryCard(log: UnlockHistoryEntity) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isSuccess) Icons.Default.Check else Icons.Default.Close,
+                    imageVector = if (isSuccess) {
+                        Icons.Default.Check
+                    } else if (isLocked) {
+                        Icons.Default.Lock
+                    } else {
+                        Icons.Default.Close
+                    },
                     contentDescription = null,
                     tint = statusColor,
                     modifier = Modifier.size(18.dp)

@@ -98,6 +98,13 @@ class ConnectionManager @Inject constructor(
         }
     }
 
+    suspend fun getLockStatus(laptop: Laptop): NetworkResult<Boolean> {
+        return when (laptop.connectionMode) {
+            ConnectionMode.LOCAL -> apiClient.getDeviceLockStatus(getBaseUrl(laptop), laptop.accessToken)
+            ConnectionMode.REMOTE -> remoteRelay.fetchRemoteLockStatus(laptop.id)
+        }
+    }
+
     suspend fun approveResource(
         laptop: Laptop,
         approvalTokenJson: String

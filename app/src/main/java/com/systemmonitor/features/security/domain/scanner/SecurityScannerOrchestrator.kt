@@ -102,37 +102,37 @@ class SecurityScanner @Inject constructor(
         val startTime = System.currentTimeMillis()
         val allThreats = mutableListOf<ThreatInfo>()
 
-        emit(ScanProgress(10, "Checking installed apps..."))
+        emit(ScanProgress(10, "Checking installed apps...", collectedThreats = allThreats.toList()))
         delay(400)
         val appThreats = withContext(Dispatchers.IO) { appScanner.scanApps() }
         allThreats.addAll(appThreats.filter { !isIgnored(it) })
 
-        emit(ScanProgress(25, "Checking dangerous permissions..."))
+        emit(ScanProgress(25, "Checking dangerous permissions...", collectedThreats = allThreats.toList()))
         delay(400)
         val permThreats = withContext(Dispatchers.IO) { permissionScanner.scanPermissions() }
         allThreats.addAll(permThreats.filter { !isIgnored(it) })
 
-        emit(ScanProgress(45, "Checking device security configuration..."))
+        emit(ScanProgress(45, "Checking device security configuration...", collectedThreats = allThreats.toList()))
         delay(400)
         val configThreats = withContext(Dispatchers.IO) { configurationScanner.scanConfiguration() }
         allThreats.addAll(configThreats.filter { !isIgnored(it) })
 
-        emit(ScanProgress(65, "Checking network security..."))
+        emit(ScanProgress(65, "Checking network security...", collectedThreats = allThreats.toList()))
         delay(400)
         val netThreats = withContext(Dispatchers.IO) { networkSecurityScanner.scanNetwork() }
         allThreats.addAll(netThreats.filter { !isIgnored(it) })
 
-        emit(ScanProgress(80, "Checking accessibility services..."))
+        emit(ScanProgress(80, "Checking accessibility services...", collectedThreats = allThreats.toList()))
         delay(400)
         val accessThreats = withContext(Dispatchers.IO) { accessibilityScanner.scanAccessibility() }
         allThreats.addAll(accessThreats.filter { !isIgnored(it) })
 
-        emit(ScanProgress(90, "Checking storage/security configuration..."))
+        emit(ScanProgress(90, "Checking storage/security configuration...", collectedThreats = allThreats.toList()))
         delay(400)
         val storageThreats = withContext(Dispatchers.IO) { storageSecurityScanner.scanStorage() }
         allThreats.addAll(storageThreats.filter { !isIgnored(it) })
 
-        emit(ScanProgress(98, "Calculating security score & generating report..."))
+        emit(ScanProgress(98, "Calculating security score & generating report...", collectedThreats = allThreats.toList()))
         delay(300)
 
         val score = threatAnalyzer.calculateScore(allThreats)
@@ -147,7 +147,7 @@ class SecurityScanner @Inject constructor(
             durationMs = durationMs
         )
 
-        emit(ScanProgress(100, "Scan complete!", isFinished = true, finalScan = finalScan))
+        emit(ScanProgress(100, "Scan complete!", collectedThreats = allThreats.toList(), isFinished = true, finalScan = finalScan))
     }
 
     /**
