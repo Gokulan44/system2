@@ -3,17 +3,6 @@ package com.systemmonitor.local.database
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-/**
- * Central registry of all Room migrations. Keep every migration here (never
- * delete an old one) so upgrades from any historical version still resolve.
- *
- * Example for the future:
- * val MIGRATION_1_2 = object : Migration(1, 2) {
- *     override fun migrate(db: SupportSQLiteDatabase) {
- *         db.execSQL("ALTER TABLE battery_readings ADD COLUMN cycleCount INTEGER NOT NULL DEFAULT 0")
- *     }
- * }
- */
 object DatabaseMigrations {
 
     /** v3 → v4: adds connectionMode column to laptops table (LOCAL | REMOTE) */
@@ -34,5 +23,17 @@ object DatabaseMigrations {
         }
     }
 
-    val ALL = arrayOf<Migration>(MIGRATION_3_4, MIGRATION_5_6)
+    /** v10 → v11: adds fileHash, checksum, isTrash, trashedAt to vault_files, isTrash to vault_folders, and vault_settings table */
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE vault_files ADD COLUMN fileHash TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE vault_files ADD COLUMN checksum TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE vault_files ADD COLUMN isTrash INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE vault_files ADD COLUMN trashedAt INTEGER DEFAULT NULL")
+            db.execSQL("ALTER TABLE vault_folders ADD COLUMN isTrash INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `vault_settings` (`key` TEXT NOT NULL, `value` TEXT NOT NULL, PRIMARY KEY(`key`))")
+        }
+    }
+
+    val ALL = arrayOf<Migration>(MIGRATION_3_4, MIGRATION_5_6, MIGRATION_10_11)
 }

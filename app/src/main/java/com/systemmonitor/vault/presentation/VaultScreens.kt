@@ -464,7 +464,7 @@ fun VaultHomeScreen(
                 }
             }
             contentResolver.getType(it)?.let { type -> mime = type }
-            viewModel.importFile(it, name, mime)
+            viewModel.importFile(it)
         }
     }
 
@@ -539,6 +539,22 @@ fun VaultHomeScreen(
                             onClick = {
                                 fabExpanded = false
                                 showCreateFolderDialog = true
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Run Integrity Scan", color = Color.White) },
+                            leadingIcon = { Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFFF59E0B)) },
+                            onClick = {
+                                fabExpanded = false
+                                viewModel.runIntegrityCheck()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Backup Vault Archive", color = Color.White) },
+                            leadingIcon = { Icon(Icons.Default.Backup, contentDescription = null, tint = Color(0xFF8B5CF6)) },
+                            onClick = {
+                                fabExpanded = false
+                                viewModel.createVaultBackup()
                             }
                         )
                     }
@@ -962,6 +978,8 @@ fun FileGridCard(
         VaultFileType.VIDEO -> Pair(Icons.Default.VideoFile, Color(0xFF8B5CF6))
         VaultFileType.AUDIO -> Pair(Icons.Default.AudioFile, Color(0xFFF59E0B))
         VaultFileType.DOCUMENT -> Pair(Icons.Default.Description, Color(0xFF0284C7))
+        VaultFileType.ARCHIVE -> Pair(Icons.Default.FolderZip, Color(0xFFEC4899))
+        VaultFileType.APK -> Pair(Icons.Default.Android, Color(0xFF22C55E))
         VaultFileType.OTHER -> Pair(Icons.Default.InsertDriveFile, Color(0xFF64748B))
     }
 

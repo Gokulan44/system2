@@ -79,6 +79,9 @@ object DatabaseModule {
     fun provideVaultAuditDao(db: AppDatabase): com.systemmonitor.vault.database.VaultAuditDao = db.vaultAuditDao()
 
     @Provides
+    fun provideVaultSettingsDao(db: AppDatabase): com.systemmonitor.vault.database.VaultSettingsDao = db.vaultSettingsDao()
+
+    @Provides
     @Singleton
     fun provideAppLockDatabase(@ApplicationContext context: Context): AppLockDataDatabase =
         Room.databaseBuilder(context, AppLockDataDatabase::class.java, "app_lock.db")

@@ -54,6 +54,7 @@ fun SecurityDashboardScreen(
     viewModel: SecurityDashboardViewModel = hiltViewModel(),
     onStartScan: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToVault: () -> Unit = {},
     onBackClick: () -> Unit
 ) {
     val history by viewModel.history.collectAsState()
@@ -142,6 +143,8 @@ fun SecurityDashboardScreen(
             SecurityModuleTile("Installed Apps Scan", "Audit 142 installed APK signatures & hash", Icons.Default.Apps, Color(0xFF3B82F6), onStartScan)
             Spacer(modifier = Modifier.height(10.dp))
             SecurityModuleTile("Permission Analyzer", "Check Camera, Mic, SMS, Location access", Icons.Default.PrivacyTip, Color(0xFF8B5CF6), onStartScan)
+            Spacer(modifier = Modifier.height(10.dp))
+            SecurityModuleTile("Secure Encrypted Vault", "Hardware AES-256 protected file vault & lock", Icons.Default.Lock, Color(0xFFEC4899), onNavigateToVault)
             Spacer(modifier = Modifier.height(10.dp))
             SecurityModuleTile("Network & Wi-Fi Security", "Analyze DNS, VPN & Wi-Fi security", Icons.Default.Wifi, Color(0xFF00E5FF), onStartScan)
             Spacer(modifier = Modifier.height(10.dp))

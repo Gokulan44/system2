@@ -49,7 +49,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileCenterScreen(
-    dashboardViewModel: DashboardViewModel = hiltViewModel()
+    dashboardViewModel: DashboardViewModel = hiltViewModel(),
+    onNavigateToVault: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val junkCleanerEngine = remember { JunkCleanerEngine(context) }

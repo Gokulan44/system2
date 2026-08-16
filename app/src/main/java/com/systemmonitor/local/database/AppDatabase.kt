@@ -27,12 +27,9 @@ import com.systemmonitor.vault.database.VaultFileDao
 import com.systemmonitor.vault.database.VaultFolderDao
 import com.systemmonitor.vault.database.VaultAuditEntity
 import com.systemmonitor.vault.database.VaultAuditDao
+import com.systemmonitor.vault.database.VaultSettingsEntity
+import com.systemmonitor.vault.database.VaultSettingsDao
 
-/**
- * Add new @Entity classes to `entities` and a matching `abstract fun xDao()`
- * as each vertical slice (Cpu, AppUsage, ...) is built out.
- * Bump `version` and add a Migration in DatabaseMigrations.kt for any schema change.
- */
 @Database(
     entities = [
         BatteryEntity::class,
@@ -46,9 +43,10 @@ import com.systemmonitor.vault.database.VaultAuditDao
         IntrusionEventEntity::class,
         VaultFileEntity::class,
         VaultFolderEntity::class,
-        VaultAuditEntity::class
+        VaultAuditEntity::class,
+        VaultSettingsEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -64,4 +62,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun vaultFileDao(): VaultFileDao
     abstract fun vaultFolderDao(): VaultFolderDao
     abstract fun vaultAuditDao(): VaultAuditDao
+    abstract fun vaultSettingsDao(): VaultSettingsDao
 }

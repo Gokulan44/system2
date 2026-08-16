@@ -335,6 +335,7 @@ fun MainScreenContainer(
                 is NavDestination.SecurityCenter -> SecurityDashboardScreen(
                     onStartScan = { currentDestination = NavDestination.SecurityScanProgress },
                     onNavigateToHistory = { currentDestination = NavDestination.ScanHistory },
+                    onNavigateToVault = { currentDestination = NavDestination.SecureVault },
                     onBackClick = { currentDestination = NavDestination.Home }
                 )
                 is NavDestination.SecurityScanProgress -> SecurityScanScreen(
@@ -609,6 +610,9 @@ fun MainScreenContainer(
                 )
                 is NavDestination.SettingsAbout -> AboutScreen(
                     onBackClick = { currentDestination = NavDestination.Settings }
+                )
+                is NavDestination.SecureVault -> VaultScreen(
+                    onBackClick = { currentDestination = NavDestination.Home }
                 )
                 else -> DashboardScreen(onNavigateTo = { currentDestination = it })
             }
