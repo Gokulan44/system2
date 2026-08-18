@@ -19,6 +19,7 @@ data class ThreatInfo(
     val title: String,
     val description: String,
     val packageName: String? = null,
+    val filePath: String? = null,
     val severity: ThreatSeverity,
     val category: String, // App, Permission, Configuration, Network, Storage, Accessibility
     val recommendedAction: String

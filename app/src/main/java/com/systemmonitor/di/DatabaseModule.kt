@@ -105,6 +105,9 @@ object DatabaseModule {
             .build()
 
     @Provides
+    fun provideScanDao(db: SecurityDatabase): ScanDao = db.scanDao()
+
+    @Provides
     @Singleton
     fun provideFeatureSecurityDatabase(@ApplicationContext context: Context): com.systemmonitor.features.security.data.FeatureSecurityDatabase =
         Room.databaseBuilder(context, com.systemmonitor.features.security.data.FeatureSecurityDatabase::class.java, "feature_security.db")

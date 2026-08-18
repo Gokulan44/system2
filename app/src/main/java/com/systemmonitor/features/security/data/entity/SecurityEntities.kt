@@ -21,6 +21,7 @@ data class ThreatEntity(
     val title: String,
     val description: String,
     val packageName: String?,
+    val filePath: String? = null,
     val severity: String,
     val category: String,
     val recommendedAction: String

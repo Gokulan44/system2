@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.systemmonitor.applock.manager.AppLockManager
 import kotlinx.coroutines.delay
+import com.systemmonitor.applock.ui.applock.components.AppIcon
 
 @Composable
 fun AppLockDashboardScreen(
@@ -216,6 +217,51 @@ fun AppLockDashboardScreen(
                         Text("Lock Method & Security Settings", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color(0xFF64748B))
+                }
+            }
+
+            if (lockedApps.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("Currently Protected Apps (${lockedApps.size})", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                lockedApps.take(5).forEach { app ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(12.dp)),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF0F172A).copy(alpha = 0.85f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AppIcon(
+                                    packageName = app.packageName,
+                                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp))
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(app.appName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(app.packageName, color = Color(0xFF64748B), fontSize = 10.sp)
+                                }
+                            }
+                            Icon(Icons.Default.Lock, contentDescription = "Protected", tint = Color(0xFF10B981), modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+
+                if (lockedApps.size > 5) {
+                    TextButton(
+                        onClick = onNavigateToSelectApps,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("View all protected apps", color = Color(0xFF00E5FF), fontSize = 12.sp)
+                    }
                 }
             }
         }

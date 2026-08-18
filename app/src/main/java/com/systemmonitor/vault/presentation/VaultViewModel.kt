@@ -26,6 +26,21 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
+data class VaultAnalysisState(
+    val totalSize: Long = 0L,
+    val totalFiles: Int = 0,
+    val imageCount: Int = 0,
+    val imageSize: Long = 0L,
+    val videoCount: Int = 0,
+    val videoSize: Long = 0L,
+    val documentCount: Int = 0,
+    val documentSize: Long = 0L,
+    val audioCount: Int = 0,
+    val audioSize: Long = 0L,
+    val otherCount: Int = 0,
+    val otherSize: Long = 0L
+)
+
 data class VaultUiState(
     val isLocked: Boolean = true,
     val isSetup: Boolean = false,
@@ -61,6 +76,61 @@ class VaultViewModel @Inject constructor(
 
     val allVaultFiles: StateFlow<List<VaultFile>> = repository.files.getAllFiles()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val vaultAnalysis: StateFlow<VaultAnalysisState> = allVaultFiles.map { files ->
+        var totalSize = 0L
+        var imgCount = 0
+        var imgSize = 0L
+        var vidCount = 0
+        var vidSize = 0L
+        var docCount = 0
+        var docSize = 0L
+        var audCount = 0
+        var audSize = 0L
+        var othCount = 0
+        var othSize = 0L
+
+        for (file in files) {
+            totalSize += file.sizeBytes
+            when (file.fileType) {
+                com.systemmonitor.vault.model.VaultFileType.IMAGE -> {
+                    imgCount++
+                    imgSize += file.sizeBytes
+                }
+                com.systemmonitor.vault.model.VaultFileType.VIDEO -> {
+                    vidCount++
+                    vidSize += file.sizeBytes
+                }
+                com.systemmonitor.vault.model.VaultFileType.DOCUMENT -> {
+                    docCount++
+                    docSize += file.sizeBytes
+                }
+                com.systemmonitor.vault.model.VaultFileType.AUDIO -> {
+                    audCount++
+                    audSize += file.sizeBytes
+                }
+                else -> {
+                    othCount++
+                    othSize += file.sizeBytes
+                }
+            }
+        }
+
+        VaultAnalysisState(
+            totalSize = totalSize,
+            totalFiles = files.size,
+            imageCount = imgCount,
+            imageSize = imgSize,
+            videoCount = vidCount,
+            videoSize = vidSize,
+            documentCount = docCount,
+            documentSize = docSize,
+            audioCount = audCount,
+            audioSize = audSize,
+            otherCount = othCount,
+            otherSize = othSize
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VaultAnalysisState())
 
     val auditLogs: StateFlow<List<VaultAuditEntity>> = repository.audits.getAllAudits()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

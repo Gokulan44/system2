@@ -212,6 +212,10 @@ class JunkCleanerEngine @Inject constructor(
     // Helper functions for files
     private fun collectFiles(dir: File, result: MutableList<File>) {
         dir.listFiles()?.forEach { file ->
+            val path = file.absolutePath
+            if (path.contains("/vault/") || file.name.equals("vault", ignoreCase = true) || path.contains("quarantine_vault")) {
+                return@forEach
+            }
             if (file.isDirectory) {
                 collectFiles(file, result)
             } else {
@@ -222,6 +226,10 @@ class JunkCleanerEngine @Inject constructor(
 
     private fun collectFilesWithExtensions(dir: File, extensions: List<String>, result: MutableList<File>) {
         dir.listFiles()?.forEach { file ->
+            val path = file.absolutePath
+            if (path.contains("/vault/") || file.name.equals("vault", ignoreCase = true) || path.contains("quarantine_vault")) {
+                return@forEach
+            }
             if (file.isDirectory) {
                 collectFilesWithExtensions(file, extensions, result)
             } else {
@@ -237,6 +245,10 @@ class JunkCleanerEngine @Inject constructor(
         if (dir == null || !dir.exists()) return false
         var success = true
         dir.listFiles()?.forEach { file ->
+            val path = file.absolutePath
+            if (path.contains("/vault/") || file.name.equals("vault", ignoreCase = true) || path.contains("quarantine_vault")) {
+                return@forEach
+            }
             if (file.isDirectory) {
                 cleanDirectory(file)
             } else {
@@ -250,6 +262,10 @@ class JunkCleanerEngine @Inject constructor(
 
     private fun deleteFilesWithExtensions(dir: File, extensions: List<String>) {
         dir.listFiles()?.forEach { file ->
+            val path = file.absolutePath
+            if (path.contains("/vault/") || file.name.equals("vault", ignoreCase = true) || path.contains("quarantine_vault")) {
+                return@forEach
+            }
             if (file.isDirectory) {
                 deleteFilesWithExtensions(file, extensions)
             } else {

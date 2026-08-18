@@ -27,6 +27,8 @@ import com.systemmonitor.features.settings.power.PowerPolicyManager
 import com.systemmonitor.features.settings.SettingsRepository
 import java.util.Locale
 import javax.inject.Inject
+import com.systemmonitor.vault.repository.VaultFileRepository
+import com.systemmonitor.securityanalysis.database.ScanDao
 
 data class AlertItem(
     val id: String,
@@ -54,7 +56,19 @@ data class DashboardUiState(
     val ramPercent: Int = 68,
     val lastScanTimeText: String = "Today 10:20 AM",
     val alerts: List<AlertItem> = emptyList(),
-    val installedApps: List<InstalledApp> = emptyList()
+    val installedApps: List<InstalledApp> = emptyList(),
+    val vaultImageCount: Int = 0,
+    val vaultImageSizeText: String = "0 B",
+    val vaultVideoCount: Int = 0,
+    val vaultVideoSizeText: String = "0 B",
+    val vaultAudioCount: Int = 0,
+    val vaultAudioSizeText: String = "0 B",
+    val vaultDocCount: Int = 0,
+    val vaultDocSizeText: String = "0 B",
+    val vaultTotalFiles: Int = 0,
+    val vaultTotalSizeText: String = "0 B",
+    val quarantineCount: Int = 0,
+    val quarantineSizeText: String = "0 B"
 )
 
 @HiltViewModel
@@ -70,7 +84,9 @@ class DashboardViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val notificationManager: com.systemmonitor.features.notifications.NotificationManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
-    private val appLockManager: com.systemmonitor.applock.manager.AppLockManager
+    private val appLockManager: com.systemmonitor.applock.manager.AppLockManager,
+    private val vaultFileRepository: VaultFileRepository,
+    private val scanDao: ScanDao
 ) : ViewModel() {
 
     private var storageOffsetBytes = 0L
@@ -89,6 +105,7 @@ class DashboardViewModel @Inject constructor(
     init {
         loadRealSystemData()
         startPeriodicUpdates()
+        observeVaultAndQuarantineStats()
     }
 
     fun loadRealSystemData() {
@@ -310,5 +327,82 @@ class DashboardViewModel @Inject constructor(
         } catch (e: Exception) {
             (15..45).random()
         }
+    }
+
+    private fun observeVaultAndQuarantineStats() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            vaultFileRepository.getAllFiles().collect { files ->
+                var imgCount = 0
+                var imgSize = 0L
+                var vidCount = 0
+                var vidSize = 0L
+                var audCount = 0
+                var audSize = 0L
+                var docCount = 0
+                var docSize = 0L
+
+                for (file in files) {
+                    when (file.fileType) {
+                        com.systemmonitor.vault.model.VaultFileType.IMAGE -> {
+                            imgCount++
+                            imgSize += file.sizeBytes
+                        }
+                        com.systemmonitor.vault.model.VaultFileType.VIDEO -> {
+                            vidCount++
+                            vidSize += file.sizeBytes
+                        }
+                        com.systemmonitor.vault.model.VaultFileType.AUDIO -> {
+                            audCount++
+                            audSize += file.sizeBytes
+                        }
+                        com.systemmonitor.vault.model.VaultFileType.DOCUMENT -> {
+                            docCount++
+                            docSize += file.sizeBytes
+                        }
+                        else -> {}
+                    }
+                }
+
+                val totalSize = imgSize + vidSize + audSize + docSize
+                _uiState.update {
+                    it.copy(
+                        vaultImageCount = imgCount,
+                        vaultImageSizeText = formatBytes(imgSize),
+                        vaultVideoCount = vidCount,
+                        vaultVideoSizeText = formatBytes(vidSize),
+                        vaultAudioCount = audCount,
+                        vaultAudioSizeText = formatBytes(audSize),
+                        vaultDocCount = docCount,
+                        vaultDocSizeText = formatBytes(docSize),
+                        vaultTotalFiles = files.size,
+                        vaultTotalSizeText = formatBytes(totalSize)
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            scanDao.getActiveQuarantineFiles().collect { quarantineFiles ->
+                val totalSize = quarantineFiles.sumOf { 
+                    try {
+                        val file = java.io.File(it.quarantineFilePath)
+                        if (file.exists()) file.length() else 0L
+                    } catch (e: Exception) { 0L }
+                }
+                _uiState.update {
+                    it.copy(
+                        quarantineCount = quarantineFiles.size,
+                        quarantineSizeText = formatBytes(totalSize)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        if (bytes <= 0) return "0 B"
+        val units = arrayOf("B", "KB", "MB", "GB", "TB")
+        val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(0, units.size - 1)
+        return String.format(Locale.US, "%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
     }
 }

@@ -442,6 +442,8 @@ fun VaultHomeScreen(
 ) {
     val context = LocalContext.current
     val allFiles by viewModel.allVaultFiles.collectAsState()
+    val analysis by viewModel.vaultAnalysis.collectAsState()
+    var isAnalysisExpanded by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf("ALL") }
 
@@ -656,6 +658,114 @@ fun VaultHomeScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // 1. Vault Storage Analysis Card
+            if (selectedCategory == "ALL" && state.currentFolderId == null && analysis.totalFiles > 0) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .clickable { isAnalysisExpanded = !isAnalysisExpanded },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A).copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, Color(0xFF1E293B))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF00E5FF).copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PieChart,
+                                        contentDescription = null,
+                                        tint = Color(0xFF00E5FF),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Vault Database Analysis",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${analysis.totalFiles} files • ${formatBytes(analysis.totalSize)} total size",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = if (isAnalysisExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = "Toggle Analysis",
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
+
+                        AnimatedVisibility(visible = isAnalysisExpanded) {
+                            Column {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                // Proportion Bar
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF334155))
+                                ) {
+                                    val total = analysis.totalSize.toFloat().coerceAtLeast(1f)
+                                    val imgWeight = analysis.imageSize / total
+                                    val vidWeight = analysis.videoSize / total
+                                    val docWeight = analysis.documentSize / total
+                                    val audWeight = analysis.audioSize / total
+                                    val othWeight = analysis.otherSize / total
+
+                                    if (imgWeight > 0) {
+                                        Box(modifier = Modifier.weight(imgWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFF3B82F6)))
+                                    }
+                                    if (vidWeight > 0) {
+                                        Box(modifier = Modifier.weight(vidWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFFEC4899)))
+                                    }
+                                    if (docWeight > 0) {
+                                        Box(modifier = Modifier.weight(docWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFF10B981)))
+                                    }
+                                    if (audWeight > 0) {
+                                        Box(modifier = Modifier.weight(audWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFF8B5CF6)))
+                                    }
+                                    if (othWeight > 0) {
+                                        Box(modifier = Modifier.weight(othWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFF64748B)))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Grid details
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    AnalysisCategoryRow("Photos & Images", analysis.imageCount, analysis.imageSize, Color(0xFF3B82F6))
+                                    AnalysisCategoryRow("Videos & Clips", analysis.videoCount, analysis.videoSize, Color(0xFFEC4899))
+                                    AnalysisCategoryRow("Documents & PDFs", analysis.documentCount, analysis.documentSize, Color(0xFF10B981))
+                                    AnalysisCategoryRow("Audio & Tracks", analysis.audioCount, analysis.audioSize, Color(0xFF8B5CF6))
+                                    if (analysis.otherCount > 0) {
+                                        AnalysisCategoryRow("Other Files", analysis.otherCount, analysis.otherSize, Color(0xFF64748B))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             if (state.isImporting) {
@@ -1286,4 +1396,39 @@ fun SecureFileViewerDialog(
             }
         }
     }
+}
+
+@Composable
+private fun AnalysisCategoryRow(
+    label: String,
+    count: Int,
+    sizeBytes: Long,
+    color: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = label, color = Color(0xFFE2E8F0), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(text = "($count)", color = Color(0xFF64748B), fontSize = 11.sp)
+        }
+        Text(text = formatBytes(sizeBytes), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB", "TB")
+    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(0, units.size - 1)
+    return String.format(java.util.Locale.US, "%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
 }

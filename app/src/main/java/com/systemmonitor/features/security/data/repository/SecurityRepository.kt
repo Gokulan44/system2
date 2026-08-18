@@ -21,6 +21,7 @@ import javax.inject.Singleton
 class SecurityRepository @Inject constructor(
     private val securityScanDao: SecurityScanDao,
     private val appLockManager: AppLockManager,
+    private val quarantineManager: com.systemmonitor.securityanalysis.isolation.QuarantineManager,
     @ApplicationContext private val context: Context
 ) {
     /**
@@ -42,6 +43,7 @@ class SecurityRepository @Inject constructor(
                         title = t.title,
                         description = t.description,
                         packageName = t.packageName,
+                        filePath = t.filePath,
                         severity = try {
                             ThreatSeverity.valueOf(t.severity)
                         } catch (e: IllegalArgumentException) {
@@ -86,6 +88,7 @@ class SecurityRepository @Inject constructor(
                 title = threat.title,
                 description = threat.description,
                 packageName = threat.packageName,
+                filePath = threat.filePath,
                 severity = threat.severity.name,
                 category = threat.category,
                 recommendedAction = threat.recommendedAction
@@ -102,6 +105,7 @@ class SecurityRepository @Inject constructor(
                 title = entity.title,
                 description = entity.description,
                 packageName = entity.packageName,
+                filePath = entity.filePath,
                 severity = try {
                     ThreatSeverity.valueOf(entity.severity)
                 } catch (e: IllegalArgumentException) {
@@ -150,6 +154,7 @@ class SecurityRepository @Inject constructor(
                 title = it.title,
                 description = it.description,
                 packageName = it.packageName,
+                filePath = it.filePath,
                 severity = try { ThreatSeverity.valueOf(it.severity) } catch (_: Exception) { ThreatSeverity.MEDIUM },
                 category = it.category,
                 recommendedAction = it.recommendedAction
@@ -170,8 +175,16 @@ class SecurityRepository @Inject constructor(
                 }
             }
             "QUARANTINE" -> {
-                threat?.packageName?.let { pkg ->
-                    appLockManager.setAppLocked(pkg, threat.title, true)
+                if (threat != null && !threat.filePath.isNullOrEmpty()) {
+                    val file = java.io.File(threat.filePath)
+                    if (file.exists()) {
+                        val sha256 = threat.id.removePrefix("file_")
+                        quarantineManager.quarantineFile(file, sha256, threat.description)
+                    }
+                } else {
+                    threat?.packageName?.let { pkg ->
+                        appLockManager.setAppLocked(pkg, threat.title, true)
+                    }
                 }
                 securityScanDao.deleteThreat(threatId)
                 true

@@ -13,6 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.systemmonitor.securityanalysis.scanner.FileScanner
 
 @Singleton
 class ConfigurationScanner @Inject constructor(
@@ -122,13 +123,56 @@ class NetworkSecurityScanner @Inject constructor(
 
 @Singleton
 class StorageSecurityScanner @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val fileScanner: FileScanner
 ) {
     fun scanStorage(): List<ThreatInfo> {
         val threats = mutableListOf<ThreatInfo>()
-        val downloadDir = context.getExternalFilesDir(null)
-        // Storage APK scan check
+        val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        if (downloadDir != null && downloadDir.exists()) {
+            scanDirectory(downloadDir, threats)
+        }
+        val appExternalDir = context.getExternalFilesDir(null)
+        if (appExternalDir != null && appExternalDir.exists()) {
+            scanDirectory(appExternalDir, threats)
+        }
         return threats
+    }
+
+    private fun scanDirectory(dir: File, threats: MutableList<ThreatInfo>) {
+        if (!dir.exists() || !dir.isDirectory) return
+        
+        dir.listFiles()?.forEach { file ->
+            val path = file.absolutePath
+            if (path.contains("/vault/") || file.name.equals("vault", ignoreCase = true) || path.contains("quarantine_vault") || path.contains("scan_workspace")) {
+                return@forEach
+            }
+            if (file.isDirectory) {
+                scanDirectory(file, threats)
+            } else {
+                if (file.name.endsWith(".apk", ignoreCase = true) || file.name.endsWith(".pdf", ignoreCase = true)) {
+                    val result = fileScanner.scanFile(file)
+                    if (result.verdict == "Malicious" || result.verdict == "Dangerous" || result.verdict == "Suspicious") {
+                        val severity = when (result.verdict) {
+                            "Malicious", "Dangerous" -> ThreatSeverity.HIGH
+                            else -> ThreatSeverity.MEDIUM
+                        }
+                        threats.add(
+                            ThreatInfo(
+                                id = "file_${result.sha256}",
+                                title = "Suspicious File Detected",
+                                description = "File '${result.fileName}' contains potential threat signatures (verdict: ${result.verdict}).",
+                                packageName = null,
+                                filePath = result.filePath,
+                                severity = severity,
+                                category = "Storage Security",
+                                recommendedAction = "Quarantine or delete this file from storage"
+                            )
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.systemmonitor.applock.manager.AppLockManager
 import com.systemmonitor.features.dashboard.DashboardViewModel
 import kotlinx.coroutines.launch
+import com.systemmonitor.applock.ui.applock.components.AppIcon
 
 @Composable
 fun AddAppsScreen(
@@ -79,9 +81,19 @@ fun AddAppsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(app.appName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                                    Text(app.packageName, color = Color(0xFF64748B), fontSize = 10.sp)
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    AppIcon(
+                                        packageName = app.packageName,
+                                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
+                                    )
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Column {
+                                        Text(app.appName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Text(app.packageName, color = Color(0xFF64748B), fontSize = 10.sp)
+                                    }
                                 }
                                 IconButton(onClick = {
                                     scope.launch {

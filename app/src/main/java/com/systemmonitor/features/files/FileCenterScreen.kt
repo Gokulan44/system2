@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -67,6 +68,7 @@ fun FileCenterScreen(
     var activeCleaningCategory by remember { mutableStateOf("") }
     var currentFreedBytes by remember { mutableStateOf(0L) }
     var cleanSuccessMessage by remember { mutableStateOf<String?>(null) }
+    var selectedAnalysisTab by remember { mutableStateOf("DEVICE") }
     
     val scope = rememberCoroutineScope()
     var hasAllFilesPermission by remember { mutableStateOf(junkCleanerEngine.hasAllFilesPermission()) }
@@ -420,7 +422,7 @@ fun FileCenterScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Hardware KeyStore encrypted sandbox for confidential files",
+                            text = if (state.vaultTotalFiles > 0) "${state.vaultTotalFiles} files stored • ${state.vaultTotalSizeText} total size" else "Hardware KeyStore encrypted sandbox for confidential files",
                             color = Color(0xFF94A3B8),
                             fontSize = 12.sp
                         )
@@ -437,9 +439,37 @@ fun FileCenterScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp)
+                    .background(Color(0xFF1E293B).copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf("DEVICE" to "Device Storage", "VAULT" to "Secure Vault DB").forEach { (key, label) ->
+                    val isSelected = selectedAnalysisTab == key
+                    val bg = if (isSelected) Color(0xFFD97706) else Color.Transparent
+                    val fg = if (isSelected) Color.White else Color(0xFF94A3B8)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(bg)
+                            .clickable { selectedAnalysisTab = key }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = label, color = fg, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // File Categories Grid
             Text(
-                text = "Storage Categories",
+                text = if (selectedAnalysisTab == "DEVICE") "Storage Categories" else "Secure Vault Analysis",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -447,53 +477,103 @@ fun FileCenterScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            FileCategoryRow(
-                icon = Icons.Default.Image,
-                iconColor = Color(0xFF3B82F6),
-                title = "Images & Photos",
-                subText = "$imageCount files",
-                sizeText = imageSizeText
-            )
+            if (selectedAnalysisTab == "DEVICE") {
+                FileCategoryRow(
+                    icon = Icons.Default.Image,
+                    iconColor = Color(0xFF3B82F6),
+                    title = "Images & Photos",
+                    subText = "$imageCount files",
+                    sizeText = imageSizeText
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            FileCategoryRow(
-                icon = Icons.Default.Movie,
-                iconColor = Color(0xFFEC4899),
-                title = "Videos & Clips",
-                subText = "$videoCount files",
-                sizeText = videoSizeText
-            )
+                FileCategoryRow(
+                    icon = Icons.Default.Movie,
+                    iconColor = Color(0xFFEC4899),
+                    title = "Videos & Clips",
+                    subText = "$videoCount files",
+                    sizeText = videoSizeText
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            FileCategoryRow(
-                icon = Icons.Default.AudioFile,
-                iconColor = Color(0xFF8B5CF6),
-                title = "Audio & Music",
-                subText = "$audioCount files",
-                sizeText = audioSizeText
-            )
+                FileCategoryRow(
+                    icon = Icons.Default.AudioFile,
+                    iconColor = Color(0xFF8B5CF6),
+                    title = "Audio & Music",
+                    subText = "$audioCount files",
+                    sizeText = audioSizeText
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            FileCategoryRow(
-                icon = Icons.Default.Description,
-                iconColor = Color(0xFF10B981),
-                title = "Documents & PDFs",
-                subText = "$docCount files",
-                sizeText = docSizeText
-            )
+                FileCategoryRow(
+                    icon = Icons.Default.Description,
+                    iconColor = Color(0xFF10B981),
+                    title = "Documents & PDFs",
+                    subText = "$docCount files",
+                    sizeText = docSizeText
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            FileCategoryRow(
-                icon = Icons.Default.Storage,
-                iconColor = Color(0xFFF59E0B),
-                title = "Installed App Data",
-                subText = "$appDataCount packages",
-                sizeText = appDataSizeText
-            )
+                FileCategoryRow(
+                    icon = Icons.Default.Storage,
+                    iconColor = Color(0xFFF59E0B),
+                    title = "Installed App Data",
+                    subText = "$appDataCount packages",
+                    sizeText = appDataSizeText
+                )
+            } else {
+                FileCategoryRow(
+                    icon = Icons.Default.Image,
+                    iconColor = Color(0xFF3B82F6),
+                    title = "Vault Images & Photos",
+                    subText = "${state.vaultImageCount} files",
+                    sizeText = state.vaultImageSizeText
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FileCategoryRow(
+                    icon = Icons.Default.Movie,
+                    iconColor = Color(0xFFEC4899),
+                    title = "Vault Videos & Clips",
+                    subText = "${state.vaultVideoCount} files",
+                    sizeText = state.vaultVideoSizeText
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FileCategoryRow(
+                    icon = Icons.Default.AudioFile,
+                    iconColor = Color(0xFF8B5CF6),
+                    title = "Vault Audio & Music",
+                    subText = "${state.vaultAudioCount} files",
+                    sizeText = state.vaultAudioSizeText
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FileCategoryRow(
+                    icon = Icons.Default.Description,
+                    iconColor = Color(0xFF10B981),
+                    title = "Vault Documents & PDFs",
+                    subText = "${state.vaultDocCount} files",
+                    sizeText = state.vaultDocSizeText
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FileCategoryRow(
+                    icon = Icons.Default.Security,
+                    iconColor = Color(0xFFEF4444),
+                    title = "Quarantined Threat Files",
+                    subText = "${state.quarantineCount} files",
+                    sizeText = state.quarantineSizeText
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
