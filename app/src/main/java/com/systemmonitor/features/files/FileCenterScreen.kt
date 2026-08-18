@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AudioFile
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.*
@@ -83,6 +85,8 @@ fun FileCenterScreen(
     var audioSizeText by remember { mutableStateOf("4.8 GB") }
     var docCount by remember { mutableStateOf(324) }
     var docSizeText by remember { mutableStateOf("2.1 GB") }
+    var appDataCount by remember { mutableStateOf(state.appsCheckedCount) }
+    var appDataSizeText by remember { mutableStateOf("Calculating...") }
 
     // Run scanning flow unconditionally
     LaunchedEffect(hasAllFilesPermission) {
@@ -95,7 +99,7 @@ fun FileCenterScreen(
             }
         }
         
-        // Load real category counts from MediaStore queries
+        // Load real category counts from MediaStore & Package queries
         withContext(Dispatchers.IO) {
             val img = junkCleanerEngine.queryCategoryStats("image")
             if (img.count > 0) {
@@ -119,6 +123,12 @@ fun FileCenterScreen(
             if (doc.count > 0) {
                 docCount = doc.count
                 docSizeText = formatBytes(doc.sizeBytes)
+            }
+
+            val appStats = junkCleanerEngine.queryInstalledAppsStats()
+            if (appStats.count > 0) {
+                appDataCount = appStats.count
+                appDataSizeText = formatBytes(appStats.sizeBytes)
             }
         }
     }
@@ -349,6 +359,84 @@ fun FileCenterScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
+            // Secure Encrypted Vault Quick Access Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToVault() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(Color(0xFF00E5FF), Color(0xFFEC4899))))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF00E5FF).copy(alpha = 0.2f), Color(0xFFEC4899).copy(alpha = 0.2f))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Secure Vault",
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Secure File Vault",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                color = Color(0xFF10B981).copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(6.dp),
+                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = "AES-256 GCM",
+                                    color = Color(0xFF10B981),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Hardware KeyStore encrypted sandbox for confidential files",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open Vault",
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
             // File Categories Grid
             Text(
                 text = "Storage Categories",
@@ -403,8 +491,8 @@ fun FileCenterScreen(
                 icon = Icons.Default.Storage,
                 iconColor = Color(0xFFF59E0B),
                 title = "Installed App Data",
-                subText = "${state.appsCheckedCount} packages",
-                sizeText = "18.6 GB"
+                subText = "$appDataCount packages",
+                sizeText = appDataSizeText
             )
 
             Spacer(modifier = Modifier.height(24.dp))

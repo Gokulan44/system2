@@ -48,6 +48,8 @@ import com.systemmonitor.vault.database.VaultAuditEntity
 import com.systemmonitor.vault.model.VaultFile
 import com.systemmonitor.vault.model.VaultFileType
 import com.systemmonitor.vault.model.VaultFolder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -439,6 +441,7 @@ fun VaultHomeScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val allFiles by viewModel.allVaultFiles.collectAsState()
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf("ALL") }
 
@@ -449,22 +452,12 @@ fun VaultHomeScreen(
     var renameTargetFolder by remember { mutableStateOf<VaultFolder?>(null) }
     var renameTargetFile by remember { mutableStateOf<VaultFile?>(null) }
 
-    // Activity result launcher to import file
+    // Activity result launcher to import files (multi-select supported)
     val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            val contentResolver = context.contentResolver
-            var name = "Imported_File"
-            var mime = "application/octet-stream"
-            contentResolver.query(it, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (cursor.moveToFirst() && nameIndex >= 0) {
-                    name = cursor.getString(nameIndex)
-                }
-            }
-            contentResolver.getType(it)?.let { type -> mime = type }
-            viewModel.importFile(it)
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            viewModel.importFiles(uris)
         }
     }
 
@@ -486,6 +479,25 @@ fun VaultHomeScreen(
             )
         }
         exportFileId = null
+    }
+
+    // Activity result launcher to restore vault backup
+    val restoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val tempFile = java.io.File(context.cacheDir, "vault_restore_${System.currentTimeMillis()}.zip")
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    java.io.FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                viewModel.restoreVaultBackup(tempFile)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to copy backup file: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     Scaffold(
@@ -555,6 +567,14 @@ fun VaultHomeScreen(
                             onClick = {
                                 fabExpanded = false
                                 viewModel.createVaultBackup()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Restore Vault Backup", color = Color.White) },
+                            leadingIcon = { Icon(Icons.Default.Restore, contentDescription = null, tint = Color(0xFF10B981)) },
+                            onClick = {
+                                fabExpanded = false
+                                restoreLauncher.launch("application/zip")
                             }
                         )
                     }
@@ -658,16 +678,22 @@ fun VaultHomeScreen(
                 val audits by viewModel.auditLogs.collectAsState()
                 AuditLogsView(audits = audits)
             } else {
-                val filteredFiles = remember(state.files, selectedCategory) {
+                val filteredFiles = remember(state.files, allFiles, selectedCategory) {
                     when (selectedCategory) {
-                        "IMAGES" -> state.files.filter { it.fileType == VaultFileType.IMAGE }
-                        "VIDEOS" -> state.files.filter { it.fileType == VaultFileType.VIDEO }
-                        "DOCUMENTS" -> state.files.filter { it.fileType == VaultFileType.DOCUMENT }
+                        "IMAGES" -> allFiles.filter { it.fileType == VaultFileType.IMAGE }
+                        "VIDEOS" -> allFiles.filter { it.fileType == VaultFileType.VIDEO }
+                        "DOCUMENTS" -> allFiles.filter { it.fileType == VaultFileType.DOCUMENT }
                         else -> state.files
                     }
                 }
 
-                if (state.folders.isEmpty() && filteredFiles.isEmpty()) {
+                val showEmpty = if (selectedCategory == "ALL") {
+                    state.folders.isEmpty() && filteredFiles.isEmpty()
+                } else {
+                    filteredFiles.isEmpty()
+                }
+
+                if (showEmpty) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -683,7 +709,7 @@ fun VaultHomeScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "This folder is empty",
+                                text = if (selectedCategory == "ALL") "This folder is empty" else "No files found in this category",
                                 color = Color(0xFF64748B),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -698,13 +724,15 @@ fun VaultHomeScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        // Folders
-                        items(state.folders) { folder ->
-                            FolderGridCard(
-                                folder = folder,
-                                onClick = { viewModel.navigateToFolder(folder.id) },
-                                onMenuClick = { activeFolderMenu = folder }
-                            )
+                        // Folders (only show on ALL category tab)
+                        if (selectedCategory == "ALL") {
+                            items(state.folders) { folder ->
+                                FolderGridCard(
+                                    folder = folder,
+                                    onClick = { viewModel.navigateToFolder(folder.id) },
+                                    onMenuClick = { activeFolderMenu = folder }
+                                )
+                            }
                         }
 
                         // Files
@@ -1141,6 +1169,17 @@ fun SecureFileViewerDialog(
     tempFile: File,
     onClose: () -> Unit
 ) {
+    // Guaranteed cleanup on dismiss/unmount
+    DisposableEffect(tempFile) {
+        onDispose {
+            try {
+                if (tempFile.exists()) {
+                    tempFile.delete()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1165,8 +1204,12 @@ fun SecureFileViewerDialog(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                when (file.fileType) {
-                    VaultFileType.IMAGE -> {
+                val isImage = file.fileType == VaultFileType.IMAGE ||
+                        file.mimeType.startsWith("image/", ignoreCase = true) ||
+                        file.name.substringAfterLast('.', "").lowercase() in listOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "svg", "tiff", "raw", "dng", "ico")
+
+                when {
+                    isImage -> {
                         val bitmap = remember(tempFile) {
                             try {
                                 BitmapFactory.decodeFile(tempFile.absolutePath)
@@ -1184,13 +1227,18 @@ fun SecureFileViewerDialog(
                             Text("Failed to decode decrypted image", color = Color.White)
                         }
                     }
-                    VaultFileType.DOCUMENT -> {
+                    file.fileType == VaultFileType.DOCUMENT -> {
                         var textContent by remember { mutableStateOf<String?>(null) }
                         LaunchedEffect(tempFile) {
-                            try {
-                                textContent = tempFile.readText(Charsets.UTF_8)
-                            } catch (e: Exception) {
-                                textContent = "[Unable to read document as text: binary file or encoding mismatch]"
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    textContent = tempFile.readText(Charsets.UTF_8)
+                                } catch (e: Exception) {
+                                    textContent = "[Unable to read document as plain text: binary or unsupported format]\n\n" +
+                                            "File Name: ${file.name}\n" +
+                                            "File Size: ${file.sizeBytes} bytes\n" +
+                                            "MIME Type: ${file.mimeType}"
+                                }
                             }
                         }
                         

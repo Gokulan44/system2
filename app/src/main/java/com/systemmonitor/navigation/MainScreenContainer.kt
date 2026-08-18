@@ -374,20 +374,16 @@ fun MainScreenContainer(
                         ResolveActionsScreen(
                             threat = threat,
                             onResolveAction = { action ->
-                                if (action.uppercase() == "REMOVE" && !threat.packageName.isNullOrEmpty()) {
-                                    val intent = Intent(Intent.ACTION_DELETE).apply {
-                                        data = Uri.parse("package:${threat.packageName}")
-                                    }
-                                    context.startActivity(intent)
-                                }
                                 resolveActionsViewModel.resolveThreat(threat.id, scanId, action) { updatedScan ->
-                                    lastScanResult = updatedScan
+                                    if (updatedScan != null) {
+                                        lastScanResult = updatedScan
+                                    }
                                     selectedThreat = null
                                     dashboardViewModel.loadRealSystemData()
                                     currentDestination = NavDestination.SecurityReport
                                 }
                             },
-                            onBackClick = { currentDestination = NavDestination.ScanResult }
+                            onBackClick = { currentDestination = NavDestination.SecurityReport }
                         )
                     } else {
                         currentDestination = NavDestination.SecurityCenter
@@ -407,7 +403,9 @@ fun MainScreenContainer(
                 is NavDestination.NetworkCenter -> NetworkScreen(
                     onBackClick = { currentDestination = NavDestination.Home }
                 )
-                is NavDestination.FileCenter -> FileCenterScreen()
+                is NavDestination.FileCenter -> FileCenterScreen(
+                    onNavigateToVault = { currentDestination = NavDestination.SecureVault }
+                )
                 is NavDestination.AppLock -> AppLockDashboardScreen(
                     appLockManager = appLockManager,
                     onNavigateToSelectApps = { currentDestination = NavDestination.ProtectedApps },
@@ -610,9 +608,6 @@ fun MainScreenContainer(
                 )
                 is NavDestination.SettingsAbout -> AboutScreen(
                     onBackClick = { currentDestination = NavDestination.Settings }
-                )
-                is NavDestination.SecureVault -> VaultScreen(
-                    onBackClick = { currentDestination = NavDestination.Home }
                 )
                 else -> DashboardScreen(onNavigateTo = { currentDestination = it })
             }

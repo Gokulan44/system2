@@ -46,7 +46,7 @@ fun WifiScreen(
                 icon = Icons.Default.Speed,
                 label = "Link Speed",
                 value = if (state.isConnected && state.ssid != null) "${state.linkSpeedMbps} Mbps" else "N/A",
-                subtitle = "${state.frequencyMhz} MHz",
+                subtitle = state.bandName,
                 color = Color(0xFF8B5CF6),
                 modifier = Modifier.weight(1f)
             )
@@ -63,28 +63,57 @@ fun WifiScreen(
             color = Color(0xFF0F172A).copy(alpha = 0.85f)
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
-                Text(
-                    text = "Wi-Fi Signal Analysis",
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Live Signal Stability Analysis",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Surface(
+                        color = when {
+                            state.stabilityScore >= 85 -> Color(0xFF10B981).copy(alpha = 0.2f)
+                            state.stabilityScore >= 65 -> Color(0xFFF59E0B).copy(alpha = 0.2f)
+                            else -> Color(0xFFEF4444).copy(alpha = 0.2f)
+                        },
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "${state.stabilityScore}% • ${state.stabilityRating}",
+                            color = when {
+                                state.stabilityScore >= 85 -> Color(0xFF10B981)
+                                state.stabilityScore >= 65 -> Color(0xFFF59E0B)
+                                else -> Color(0xFFEF4444)
+                            },
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                HealthDetailRow("SSID", state.ssid ?: "Not Connected", Color.White)
+                HealthDetailRow("Network Name (SSID)", state.ssid ?: "Not Connected", Color.White)
                 Spacer(modifier = Modifier.height(10.dp))
-                HealthDetailRow("Frequency band", if (state.frequencyMhz > 4900) "5 GHz" else "2.4 GHz", Color(0xFF00E5FF))
+                HealthDetailRow("Frequency Band", "${state.bandName} (${state.frequencyMhz} MHz)", Color(0xFF00E5FF))
                 Spacer(modifier = Modifier.height(10.dp))
-                HealthDetailRow("Signal Rating", if (state.signalPercent >= 80) "Excellent" else if (state.signalPercent >= 50) "Good" else "Weak", Color(0xFF10B981))
+                HealthDetailRow("Real Ping Latency", "${state.latencyMs} ms", Color(0xFF10B981))
                 Spacer(modifier = Modifier.height(10.dp))
-                HealthDetailRow("Frequency", "${state.frequencyMhz} MHz", Color.White)
+                HealthDetailRow("Latency Jitter (Std Dev)", "${state.jitterMs} ms", Color(0xFFEC4899))
+                Spacer(modifier = Modifier.height(10.dp))
+                HealthDetailRow("Signal Level (RSSI)", "${state.signalPercent}% (${state.signalDbm} dBm)", Color(0xFF8B5CF6))
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Traffic chart
+        // Traffic & Signal Stability Chart
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -93,13 +122,26 @@ fun WifiScreen(
             color = Color(0xFF0F172A).copy(alpha = 0.85f)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Signal Stability (Live)",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Signal Stability Waveform (Live)",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Jitter: ${state.jitterMs} ms",
+                        color = Color(0xFF00E5FF),
+                        fontSize = 11.sp
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
+
                 val history = state.signalHistory
                 Canvas(
                     modifier = Modifier

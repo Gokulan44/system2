@@ -59,6 +59,9 @@ class VaultViewModel @Inject constructor(
 
     private val currentFolderIdFlow = MutableStateFlow<String?>(null)
 
+    val allVaultFiles: StateFlow<List<VaultFile>> = repository.files.getAllFiles()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val auditLogs: StateFlow<List<VaultAuditEntity>> = repository.audits.getAllAudits()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -209,6 +212,18 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    fun importFiles(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            val results = importManager.importMultipleFiles(uris, currentFolderIdFlow.value)
+            val failures = results.filter { it.isFailure }
+            if (failures.isNotEmpty()) {
+                val err = "Import completed with ${failures.size} error(s)"
+                _uiState.update { it.copy(errorMessage = err) }
+            }
+        }
+    }
+
     fun deleteFile(fileId: String) {
         viewModelScope.launch {
             trashManager.moveToTrash(fileId)
@@ -285,6 +300,21 @@ class VaultViewModel @Inject constructor(
             } else {
                 val err = result.exceptionOrNull()?.message ?: "Backup failed"
                 _uiState.update { it.copy(errorMessage = "Backup creation failed: $err") }
+            }
+        }
+    }
+
+    fun restoreVaultBackup(backupFile: File) {
+        viewModelScope.launch {
+            val result = backupManager.backupManager.restoreBackupArchive(backupFile)
+            if (result.isSuccess) {
+                _uiState.update { it.copy(errorMessage = "Vault restored successfully from backup!") }
+                logEvent("BACKUP_RESTORE", "Restored vault backup archive: ${backupFile.name}")
+                currentFolderIdFlow.value = currentFolderIdFlow.value // force refresh UI content
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "Restore failed"
+                _uiState.update { it.copy(errorMessage = "Restore failed: $err") }
+                logEvent("BACKUP_RESTORE_FAILED", "Failed restore attempt: $err")
             }
         }
     }

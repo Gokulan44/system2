@@ -188,6 +188,27 @@ class JunkCleanerEngine @Inject constructor(
         return CategoryStat(count, totalSize)
     }
 
+    // Query installed app packages total size
+    fun queryInstalledAppsStats(): CategoryStat {
+        var count = 0
+        var totalBytes = 0L
+        runCatching {
+            val pm = context.packageManager
+            val packages = pm.getInstalledPackages(0)
+            count = packages.size
+            for (pkg in packages) {
+                val appInfo = pkg.applicationInfo
+                if (appInfo != null && appInfo.sourceDir != null) {
+                    val apkFile = File(appInfo.sourceDir)
+                    if (apkFile.exists()) {
+                        totalBytes += apkFile.length()
+                    }
+                }
+            }
+        }
+        return CategoryStat(count, totalBytes)
+    }
+
     // Helper functions for files
     private fun collectFiles(dir: File, result: MutableList<File>) {
         dir.listFiles()?.forEach { file ->

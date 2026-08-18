@@ -19,11 +19,19 @@ class ImportValidator @Inject constructor(
     fun validateUri(uri: Uri): ValidationResult {
         return try {
             val contentResolver = context.contentResolver
-            contentResolver.openInputStream(uri)?.use { inputStream ->
-                val availableBytes = inputStream.available().toLong()
-                if (availableBytes > MAX_FILE_SIZE_BYTES) {
-                    return ValidationResult.Invalid("File size exceeds 2GB maximum limit")
-                }
+            
+            // Check file size using AssetFileDescriptor length if available
+            val sizeBytes = try {
+                contentResolver.openAssetFileDescriptor(uri, "r")?.use { afd -> afd.length } ?: -1L
+            } catch (_: Exception) { -1L }
+
+            if (sizeBytes > MAX_FILE_SIZE_BYTES) {
+                return ValidationResult.Invalid("File size exceeds 2GB maximum limit")
+            }
+
+            // Verify input stream can be opened
+            contentResolver.openInputStream(uri)?.use { 
+                // Stream successfully opened
             } ?: return ValidationResult.Invalid("Unable to open URI input stream")
 
             // Check available internal storage space

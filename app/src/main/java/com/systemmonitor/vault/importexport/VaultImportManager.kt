@@ -89,4 +89,31 @@ class VaultImportManager @Inject constructor(
             Result.failure(result.exceptionOrNull() ?: Exception(err))
         }
     }
+
+    suspend fun importMultipleFiles(
+        uris: List<Uri>,
+        parentId: String?,
+        allowDuplicates: Boolean = false
+    ): List<Result<VaultFileEntity>> {
+        val total = uris.size
+        if (total == 0) return emptyList()
+
+        val results = mutableListOf<Result<VaultFileEntity>>()
+        uris.forEachIndexed { index, uri ->
+            _importProgress.value = ImportProgress(
+                status = ImportStatus.ENCRYPTING,
+                currentFileIndex = index + 1,
+                totalFiles = total
+            )
+            val res = importSingleFile(uri, parentId, allowDuplicates)
+            results.add(res)
+        }
+        _importProgress.value = ImportProgress(
+            status = ImportStatus.COMPLETED,
+            currentFileIndex = total,
+            totalFiles = total
+        )
+        auditRepository.logEvent("BATCH_IMPORT", "Batch imported ${results.count { it.isSuccess }}/$total files into vault")
+        return results
+    }
 }

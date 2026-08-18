@@ -56,6 +56,7 @@ data class NetworkState(
     val ssid: String? = null,
     val linkSpeedMbps: Int = 0,
     val frequencyMhz: Int = 0,
+    val bandName: String = "Wi-Fi",
     val localIp: String = "0.0.0.0",
     val gatewayIp: String = "0.0.0.0",
     val primaryDns: String = "0.0.0.0",
@@ -65,6 +66,10 @@ data class NetworkState(
     val signalDbm: Int = -100,
     val signalPercent: Int = 0,
     val latencyMs: Int = 0,
+    val jitterMs: Float = 0f,
+    val stabilityScore: Int = 100,
+    val stabilityRating: String = "Ultra Stable",
+    val packetLossPercent: Float = 0f,
     val healthScore: Int = 100,
     val downloadSpeed: String = "0.0 Mbps",
     val uploadSpeed: String = "0.0 Mbps",
@@ -73,7 +78,8 @@ data class NetworkState(
     val isScanningDevices: Boolean = false,
     val connectedDevices: List<ConnectedDeviceItem> = emptyList(),
     val eventLogs: List<NetworkEventItem> = emptyList(),
-    val signalHistory: List<Int> = List(15) { 70 }
+    val signalHistory: List<Int> = List(15) { 70 },
+    val latencyHistory: List<Int> = List(15) { 20 }
 )
 
 @HiltViewModel
@@ -283,14 +289,48 @@ class NetworkViewModel @Inject constructor(
                         signalDbm = -100 + (signalPercent / 2)
                     }
 
-                    val latency = (12..28).random()
-                    val health = (92..98).random()
-
-                    val currentHistory = _uiState.value.signalHistory.toMutableList()
-                    if (currentHistory.size >= 15) {
-                        currentHistory.removeAt(0)
+                    // Real ping latency probe
+                    val (measuredLatency, isSuccess) = measureRealLatencyMs(_uiState.value.gatewayIp)
+                    
+                    val latencyHistory = _uiState.value.latencyHistory.toMutableList()
+                    if (latencyHistory.size >= 15) {
+                        latencyHistory.removeAt(0)
                     }
-                    currentHistory.add(signalPercent)
+                    latencyHistory.add(measuredLatency)
+
+                    // Compute Jitter (standard deviation of RTT)
+                    val meanLatency = if (latencyHistory.isNotEmpty()) latencyHistory.average() else 20.0
+                    val variance = if (latencyHistory.isNotEmpty()) {
+                        latencyHistory.sumOf { (it - meanLatency) * (it - meanLatency) } / latencyHistory.size
+                    } else 0.0
+                    val jitterMs = kotlin.math.sqrt(variance).toFloat()
+
+                    // Compute Band Name
+                    val bandName = when {
+                        freq in 2400..2500 -> "2.4 GHz"
+                        freq in 4900..5900 -> "5 GHz"
+                        freq > 5900 -> "6 GHz"
+                        capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "Cellular Data"
+                        else -> "Ethernet / Other"
+                    }
+
+                    // Calculate real Stability Score
+                    val jitterPenalty = (jitterMs * 2.2f).coerceAtMost(35f)
+                    val lossPenalty = if (!isSuccess) 25f else 0f
+                    val stabilityScore = (100f - jitterPenalty - lossPenalty - ((100 - signalPercent) * 0.25f)).roundToInt().coerceIn(15, 100)
+
+                    val stabilityRating = when {
+                        stabilityScore >= 85 -> "Ultra Stable"
+                        stabilityScore >= 65 -> "Moderate Jitter"
+                        stabilityScore >= 45 -> "Slight Degradation"
+                        else -> "High Jitter / Unstable"
+                    }
+
+                    val currentSignalHistory = _uiState.value.signalHistory.toMutableList()
+                    if (currentSignalHistory.size >= 15) {
+                        currentSignalHistory.removeAt(0)
+                    }
+                    currentSignalHistory.add(signalPercent)
 
                     _uiState.update {
                         it.copy(
@@ -298,14 +338,41 @@ class NetworkViewModel @Inject constructor(
                             uploadSpeed = String.format("%.1f Mbps", if (txSpeed > 0) txSpeed else (2..8).random().toFloat() + 0.2f),
                             linkSpeedMbps = linkSpeed,
                             frequencyMhz = freq,
+                            bandName = bandName,
                             signalDbm = signalDbm,
                             signalPercent = signalPercent,
-                            latencyMs = latency,
-                            healthScore = health,
-                            signalHistory = currentHistory
+                            latencyMs = measuredLatency,
+                            jitterMs = (jitterMs * 10f).roundToInt() / 10f,
+                            stabilityScore = stabilityScore,
+                            stabilityRating = stabilityRating,
+                            healthScore = stabilityScore,
+                            signalHistory = currentSignalHistory,
+                            latencyHistory = latencyHistory
                         )
                     }
                 }
+            }
+        }
+    }
+
+    private suspend fun measureRealLatencyMs(targetHost: String): Pair<Int, Boolean> = withContext(Dispatchers.IO) {
+        val hostToPing = if (targetHost.isBlank() || targetHost == "0.0.0.0" || targetHost == "127.0.0.1") "8.8.8.8" else targetHost
+        try {
+            val startTime = System.currentTimeMillis()
+            val socket = java.net.Socket()
+            val socketAddress = java.net.InetSocketAddress(hostToPing, 53)
+            socket.connect(socketAddress, 1200)
+            val duration = (System.currentTimeMillis() - startTime).toInt()
+            socket.close()
+            Pair(duration.coerceAtLeast(1), true)
+        } catch (_: Exception) {
+            try {
+                val startTime = System.currentTimeMillis()
+                val reachable = java.net.InetAddress.getByName(hostToPing).isReachable(1000)
+                val duration = (System.currentTimeMillis() - startTime).toInt()
+                if (reachable) Pair(duration.coerceAtLeast(1), true) else Pair(120, false)
+            } catch (_: Exception) {
+                Pair(150, false)
             }
         }
     }

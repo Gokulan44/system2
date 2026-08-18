@@ -113,24 +113,70 @@ class SecurityRepository @Inject constructor(
         }
     }
 
-    suspend fun resolveThreat(threatId: String, scanId: Long, action: String) {
-        val threats = securityScanDao.getThreatsForScan(scanId)
-        val threat = threats.find { it.id == threatId }
+    fun isThreatResolved(threat: ThreatInfo): Boolean {
+        val pkg = threat.packageName
+        if (!pkg.isNullOrEmpty()) {
+            return try {
+                context.packageManager.getPackageInfo(pkg, 0)
+                false // Package still installed -> NOT resolved
+            } catch (e: Exception) {
+                true // Package uninstalled -> RESOLVED
+            }
+        }
 
-        when (action.uppercase()) {
+        return when (threat.id) {
+            "config_adb_enabled" -> {
+                val adb = try {
+                    android.provider.Settings.Global.getInt(context.contentResolver, android.provider.Settings.Global.ADB_ENABLED, 0) == 1
+                } catch (e: Exception) { false }
+                !adb
+            }
+            "config_unknown_sources" -> {
+                val unknown = try {
+                    android.provider.Settings.Secure.getInt(context.contentResolver, android.provider.Settings.Secure.INSTALL_NON_MARKET_APPS, 0) == 1
+                } catch (e: Exception) { false }
+                !unknown
+            }
+            else -> true
+        }
+    }
+
+    suspend fun resolveThreat(threatId: String, scanId: Long, action: String): Boolean {
+        val threats = securityScanDao.getThreatsForScan(scanId)
+        val entity = threats.find { it.id == threatId }
+        val threat = entity?.let {
+            ThreatInfo(
+                id = it.id,
+                title = it.title,
+                description = it.description,
+                packageName = it.packageName,
+                severity = try { ThreatSeverity.valueOf(it.severity) } catch (_: Exception) { ThreatSeverity.MEDIUM },
+                category = it.category,
+                recommendedAction = it.recommendedAction
+            )
+        }
+
+        val isResolved = when (action.uppercase()) {
             "REMOVE" -> {
-                // UI launches uninstallation, repository deletes from local DB
-                securityScanDao.deleteThreat(threatId)
+                if (threat != null) {
+                    val resolved = isThreatResolved(threat)
+                    if (resolved) {
+                        securityScanDao.deleteThreat(threatId)
+                    }
+                    resolved
+                } else {
+                    securityScanDao.deleteThreat(threatId)
+                    true
+                }
             }
             "QUARANTINE" -> {
-                // Lock app to prevent execution (App Lock Quarantine)
                 threat?.packageName?.let { pkg ->
                     appLockManager.setAppLocked(pkg, threat.title, true)
                 }
                 securityScanDao.deleteThreat(threatId)
+                true
             }
             "IGNORE" -> {
-                // Add to persistent whitelist in SharedPreferences
                 val prefs = context.getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
                 val ignoredIds = prefs.getStringSet("ignored_threat_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
                 ignoredIds.add(threatId)
@@ -142,38 +188,23 @@ class SecurityRepository @Inject constructor(
                     prefs.edit().putStringSet("ignored_packages", ignoredPackages).apply()
                 }
                 securityScanDao.deleteThreat(threatId)
+                true
             }
             else -> {
                 securityScanDao.deleteThreat(threatId)
+                true
             }
         }
 
         val remainingThreatEntities = securityScanDao.getThreatsForScan(scanId)
-        val remainingThreats = remainingThreatEntities.map { entity ->
-            ThreatInfo(
-                id = entity.id,
-                title = entity.title,
-                description = entity.description,
-                packageName = entity.packageName,
-                severity = try {
-                    ThreatSeverity.valueOf(entity.severity)
-                } catch (e: IllegalArgumentException) {
-                    ThreatSeverity.MEDIUM
-                },
-                category = entity.category,
-                recommendedAction = entity.recommendedAction
+        val existingScan = securityScanDao.getScanById(scanId)
+        if (existingScan != null) {
+            securityScanDao.insertScan(
+                existingScan.copy(
+                    issuesFoundCount = remainingThreatEntities.size
+                )
             )
         }
-
-        val existingScan = securityScanDao.getScanById(scanId) ?: return
-        val score = ThreatAnalyzer().calculateScore(remainingThreats)
-
-        securityScanDao.insertScan(
-            existingScan.copy(
-                score = score.score,
-                rating = score.rating,
-                issuesFoundCount = remainingThreats.size
-            )
-        )
+        return isResolved
     }
 }

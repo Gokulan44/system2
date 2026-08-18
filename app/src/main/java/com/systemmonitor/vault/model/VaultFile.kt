@@ -13,5 +13,5 @@ data class VaultFile(
     val isEncrypted: Boolean = true,
     val isTrash: Boolean = false,
     val trashedAt: Long? = null,
-    val fileType: VaultFileType = VaultFileType.fromMimeType(mimeType)
+    val fileType: VaultFileType = VaultFileType.fromMimeTypeAndName(mimeType, name)
 )
