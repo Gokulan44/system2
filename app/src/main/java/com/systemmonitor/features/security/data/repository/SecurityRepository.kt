@@ -166,7 +166,7 @@ class SecurityRepository @Inject constructor(
         }
 
         val isResolved = when (action.uppercase()) {
-            "REMOVE" -> {
+            "REMOVE", "FORCE_REMOVE" -> {
                 if (threat != null) {
                     if (!threat.filePath.isNullOrEmpty()) {
                         try {
@@ -176,7 +176,7 @@ class SecurityRepository @Inject constructor(
                             }
                         } catch (e: Exception) {}
                     }
-                    val resolved = isThreatResolved(threat)
+                    val resolved = if (action.uppercase() == "FORCE_REMOVE") true else isThreatResolved(threat)
                     if (resolved) {
                         securityScanDao.deleteThreat(threatId)
                     }

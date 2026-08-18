@@ -355,15 +355,17 @@ class DashboardViewModel @Inject constructor(
                             audCount++
                             audSize += file.sizeBytes
                         }
-                        com.systemmonitor.vault.model.VaultFileType.DOCUMENT -> {
+                        com.systemmonitor.vault.model.VaultFileType.DOCUMENT,
+                        com.systemmonitor.vault.model.VaultFileType.ARCHIVE,
+                        com.systemmonitor.vault.model.VaultFileType.APK,
+                        com.systemmonitor.vault.model.VaultFileType.OTHER -> {
                             docCount++
                             docSize += file.sizeBytes
                         }
-                        else -> {}
                     }
                 }
 
-                val totalSize = imgSize + vidSize + audSize + docSize
+                val totalSize = files.sumOf { it.sizeBytes }
                 _uiState.update {
                     it.copy(
                         vaultImageCount = imgCount,

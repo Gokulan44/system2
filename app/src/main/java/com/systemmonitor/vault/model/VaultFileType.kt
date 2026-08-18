@@ -19,11 +19,15 @@ enum class VaultFileType {
         fun fromMimeTypeAndName(mime: String?, name: String?): VaultFileType {
             val lowerMime = mime?.lowercase(Locale.getDefault()) ?: ""
             val ext = name?.substringAfterLast('.', "")?.lowercase(Locale.getDefault()) ?: ""
+            val lowerName = name?.lowercase(Locale.getDefault()) ?: ""
 
             return when {
-                lowerMime.startsWith("image/") || ext in listOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "svg", "tiff", "raw", "dng", "ico") -> IMAGE
-                lowerMime.startsWith("video/") || ext in listOf("mp4", "mkv", "mov", "avi", "webm", "3gp", "flv", "m4v", "ts") -> VIDEO
-                lowerMime.startsWith("audio/") || ext in listOf("mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "opus", "amr") -> AUDIO
+                lowerMime.startsWith("image/") || ext in listOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "svg", "tiff", "raw", "dng", "ico") ||
+                lowerName.contains("image") || lowerName.contains("photo") || lowerName.contains("img") || lowerName.contains("pic") -> IMAGE
+                lowerMime.startsWith("video/") || ext in listOf("mp4", "mkv", "mov", "avi", "webm", "3gp", "flv", "m4v", "ts") ||
+                lowerName.contains("video") || lowerName.contains("mp4") || lowerName.contains("mov") || lowerName.contains("clip") -> VIDEO
+                lowerMime.startsWith("audio/") || ext in listOf("mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "opus", "amr") ||
+                lowerName.contains("audio") || lowerName.contains("music") || lowerName.contains("mp3") || lowerName.contains("song") -> AUDIO
                 lowerMime.contains("pdf") || lowerMime.contains("doc") ||
                 lowerMime.contains("txt") || lowerMime.contains("xls") ||
                 lowerMime.contains("ppt") || lowerMime.contains("text/") ||

@@ -274,7 +274,7 @@ class VaultViewModel @Inject constructor(
 
     fun importFile(uri: Uri) {
         viewModelScope.launch {
-            val result = importManager.importSingleFile(uri, currentFolderIdFlow.value)
+            val result = importManager.importSingleFile(uri, currentFolderIdFlow.value, allowDuplicates = true)
             if (result.isFailure) {
                 val err = result.exceptionOrNull()?.message ?: "Import failed"
                 _uiState.update { it.copy(errorMessage = err) }
@@ -285,7 +285,7 @@ class VaultViewModel @Inject constructor(
     fun importFiles(uris: List<Uri>) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
-            val results = importManager.importMultipleFiles(uris, currentFolderIdFlow.value)
+            val results = importManager.importMultipleFiles(uris, currentFolderIdFlow.value, allowDuplicates = true)
             val failures = results.filter { it.isFailure }
             if (failures.isNotEmpty()) {
                 val err = "Import completed with ${failures.size} error(s)"

@@ -320,6 +320,18 @@ fun ResolveActionsScreen(
                         Text("RETRY UNINSTALLATION", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = { executeRemediation("FORCE_REMOVE") },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .border(1.dp, Color(0xFFEF4444), RoundedCornerShape(12.dp))
+                    ) {
+                        Text("FORCE RESOLVE THREAT (BYPASS)", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = onBackClick,
                         shape = RoundedCornerShape(12.dp),

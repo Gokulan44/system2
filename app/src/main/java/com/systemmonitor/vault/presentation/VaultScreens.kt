@@ -662,7 +662,7 @@ fun VaultHomeScreen(
             }
 
             // 1. Vault Storage Analysis Card
-            if (selectedCategory == "ALL" && state.currentFolderId == null && analysis.totalFiles > 0) {
+            if (selectedCategory == "ALL" && state.currentFolderId == null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
