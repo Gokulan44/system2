@@ -225,7 +225,7 @@ fun NetworkScreen(
                 0 -> WifiScreen(state = state)
                 1 -> IpInformationScreen(state = state)
                 2 -> DnsScreen(state = state)
-                3 -> VpnScreen(state = state)
+                3 -> VpnScreen(state = state, viewModel = viewModel)
                 4 -> ConnectionsScreen(state = state, onStartScan = { viewModel.startSubnetScan() })
             }
 

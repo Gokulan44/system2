@@ -753,7 +753,7 @@ fun VaultHomeScreen(
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Grid details
+                                 // Grid details
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     AnalysisCategoryRow("Photos & Images", analysis.imageCount, analysis.imageSize, Color(0xFF3B82F6))
                                     AnalysisCategoryRow("Videos & Clips", analysis.videoCount, analysis.videoSize, Color(0xFFEC4899))
@@ -761,6 +761,62 @@ fun VaultHomeScreen(
                                     AnalysisCategoryRow("Audio & Tracks", analysis.audioCount, analysis.audioSize, Color(0xFF8B5CF6))
                                     if (analysis.otherCount > 0) {
                                         AnalysisCategoryRow("Other Files", analysis.otherCount, analysis.otherSize, Color(0xFF64748B))
+                                    }
+                                }
+
+                                val recentFiles = remember(allFiles) {
+                                    allFiles.sortedByDescending { it.createdAt }.take(5)
+                                }
+
+                                if (recentFiles.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "Recently Secured Files",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        recentFiles.forEach { file ->
+                                            val (icon, color) = when (file.fileType) {
+                                                VaultFileType.IMAGE -> Pair(Icons.Default.Image, Color(0xFF10B981))
+                                                VaultFileType.VIDEO -> Pair(Icons.Default.VideoFile, Color(0xFF8B5CF6))
+                                                VaultFileType.AUDIO -> Pair(Icons.Default.AudioFile, Color(0xFFF59E0B))
+                                                VaultFileType.DOCUMENT -> Pair(Icons.Default.Description, Color(0xFF0284C7))
+                                                VaultFileType.ARCHIVE -> Pair(Icons.Default.FolderZip, Color(0xFFEC4899))
+                                                VaultFileType.APK -> Pair(Icons.Default.Android, Color(0xFF22C55E))
+                                                VaultFileType.OTHER -> Pair(Icons.Default.InsertDriveFile, Color(0xFF64748B))
+                                            }
+
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                modifier = Modifier
+                                                    .width(60.dp)
+                                                    .clickable { viewModel.openFileViewer(file) }
+                                            ) {
+                                                VaultThumbnail(
+                                                    file = file,
+                                                    viewModel = viewModel,
+                                                    modifier = Modifier
+                                                        .size(44.dp)
+                                                        .clip(RoundedCornerShape(8.dp)),
+                                                    fallbackIcon = icon,
+                                                    fallbackColor = color
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = file.name,
+                                                    color = Color(0xFF94A3B8),
+                                                    fontSize = 9.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

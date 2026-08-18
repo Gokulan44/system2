@@ -22,6 +22,7 @@ class SecurityRepository @Inject constructor(
     private val securityScanDao: SecurityScanDao,
     private val appLockManager: AppLockManager,
     private val quarantineManager: com.systemmonitor.securityanalysis.isolation.QuarantineManager,
+    private val threatAnalyzer: ThreatAnalyzer,
     @ApplicationContext private val context: Context
 ) {
     /**
@@ -223,9 +224,28 @@ class SecurityRepository @Inject constructor(
         val remainingThreatEntities = securityScanDao.getThreatsForScan(scanId)
         val existingScan = securityScanDao.getScanById(scanId)
         if (existingScan != null) {
+            val remainingThreats = remainingThreatEntities.map { t ->
+                ThreatInfo(
+                    id = t.id,
+                    title = t.title,
+                    description = t.description,
+                    packageName = t.packageName,
+                    filePath = t.filePath,
+                    severity = try {
+                        ThreatSeverity.valueOf(t.severity)
+                    } catch (e: Exception) {
+                        ThreatSeverity.MEDIUM
+                    },
+                    category = t.category,
+                    recommendedAction = t.recommendedAction
+                )
+            }
+            val newScoreObj = threatAnalyzer.calculateScore(remainingThreats)
             securityScanDao.insertScan(
                 existingScan.copy(
-                    issuesFoundCount = remainingThreatEntities.size
+                    score = newScoreObj.score,
+                    rating = newScoreObj.rating,
+                    issuesFoundCount = newScoreObj.issuesFoundCount
                 )
             )
         }

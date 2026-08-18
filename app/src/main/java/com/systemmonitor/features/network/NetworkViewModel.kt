@@ -63,6 +63,10 @@ data class NetworkState(
     val secondaryDns: String = "0.0.0.0",
     val isDohEnabled: Boolean = true,
     val isVpnActive: Boolean = false,
+    val isVpnSimulationActive: Boolean = false,
+    val simulatedVpnServer: String = "",
+    val simulatedVpnIp: String = "",
+    val simulatedVpnProtocol: String = "",
     val signalDbm: Int = -100,
     val signalPercent: Int = 0,
     val latencyMs: Int = 0,
@@ -102,10 +106,11 @@ class NetworkViewModel @Inject constructor(
             val capabilities = activeNetwork?.let { cm.getNetworkCapabilities(it) }
             val linkProps = activeNetwork?.let { cm.getLinkProperties(it) }
 
-            val isConnected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
-            val isVpn = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+            val isConnected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true || _uiState.value.isVpnSimulationActive
+            val isVpn = _uiState.value.isVpnSimulationActive || (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) || checkVpnInterfaces()
 
             val transportType = when {
+                _uiState.value.isVpnSimulationActive -> "Simulated VPN Tunnel"
                 capabilities == null -> "No Connection"
                 capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
                 capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Cellular"
@@ -394,5 +399,34 @@ class NetworkViewModel @Inject constructor(
             ex.printStackTrace()
         }
         return "127.0.0.1"
+    }
+
+    fun toggleVpnSimulation(active: Boolean) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isVpnSimulationActive = active,
+                    simulatedVpnServer = if (active) "Zurich, Switzerland (ch-zh-01)" else "",
+                    simulatedVpnIp = if (active) "10.8.0.2" else "",
+                    simulatedVpnProtocol = if (active) "WireGuard (ChaCha20)" else ""
+                )
+            }
+            refreshNetworkState()
+        }
+    }
+
+    private fun checkVpnInterfaces(): Boolean {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces() ?: return false
+            for (networkInterface in java.util.Collections.list(interfaces)) {
+                if (networkInterface.isUp) {
+                    val name = networkInterface.name.lowercase()
+                    if (name.contains("tun") || name.contains("ppp") || name.contains("p2p") || name.contains("tap") || name.contains("vpn")) {
+                        return true
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return false
     }
 }
