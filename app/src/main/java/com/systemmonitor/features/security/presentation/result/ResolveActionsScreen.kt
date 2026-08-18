@@ -174,6 +174,15 @@ fun ResolveActionsScreen(
                             context.startActivity(intent)
                         }
                     }
+                } else if (!threat.filePath.isNullOrEmpty()) {
+                    isAwaitingVerification = false
+                    try {
+                        val file = java.io.File(threat.filePath)
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    } catch (e: Exception) {}
+                    checkAndVerifyRemediation("REMOVE")
                 } else {
                     checkAndVerifyRemediation(action)
                 }

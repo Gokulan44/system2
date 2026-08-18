@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -849,6 +850,7 @@ fun VaultHomeScreen(
                         items(filteredFiles) { file ->
                             FileGridCard(
                                 file = file,
+                                viewModel = viewModel,
                                 onClick = { viewModel.openFileViewer(file) },
                                 onMenuClick = { activeFileMenu = file }
                             )
@@ -1108,6 +1110,7 @@ fun FolderGridCard(
 @Composable
 fun FileGridCard(
     file: VaultFile,
+    viewModel: VaultViewModel,
     onClick: () -> Unit,
     onMenuClick: () -> Unit
 ) {
@@ -1136,15 +1139,15 @@ fun FileGridCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            VaultThumbnail(
+                file = file,
+                viewModel = viewModel,
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(color.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
-            }
+                    .clip(RoundedCornerShape(8.dp)),
+                fallbackIcon = icon,
+                fallbackColor = color
+            )
             Spacer(modifier = Modifier.width(10.dp))
             Column(
                 modifier = Modifier.weight(1f),
@@ -1431,4 +1434,64 @@ private fun formatBytes(bytes: Long): String {
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
     val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(0, units.size - 1)
     return String.format(java.util.Locale.US, "%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+}
+
+@Composable
+fun VaultThumbnail(
+    file: VaultFile,
+    viewModel: VaultViewModel,
+    modifier: Modifier = Modifier,
+    fallbackIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    fallbackColor: Color
+) {
+    var bitmap by remember(file.id) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var isLoading by remember(file.id) { mutableStateOf(false) }
+
+    if (file.fileType == VaultFileType.IMAGE) {
+        LaunchedEffect(file.id) {
+            isLoading = true
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val tempDecrypted = viewModel.getDecryptedTempFile(file.id)
+                    if (tempDecrypted != null && tempDecrypted.exists()) {
+                        val decoded = BitmapFactory.decodeFile(tempDecrypted.absolutePath)
+                        bitmap = decoded
+                        try {
+                            tempDecrypted.delete()
+                        } catch (_: Exception) {}
+                    }
+                } catch (_: Exception) {
+                } finally {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier.background(fallbackColor.copy(alpha = 0.15f)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            androidx.compose.foundation.Image(
+                bitmap = bitmap!!.asImageBitmap(),
+                contentDescription = "Decrypted Thumbnail",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (isLoading) {
+            CircularProgressIndicator(
+                color = fallbackColor,
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp
+            )
+        } else {
+            Icon(
+                imageVector = fallbackIcon,
+                contentDescription = null,
+                tint = fallbackColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
 }

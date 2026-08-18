@@ -118,6 +118,9 @@ class SecurityRepository @Inject constructor(
     }
 
     fun isThreatResolved(threat: ThreatInfo): Boolean {
+        if (!threat.filePath.isNullOrEmpty()) {
+            return !java.io.File(threat.filePath).exists()
+        }
         val pkg = threat.packageName
         if (!pkg.isNullOrEmpty()) {
             return try {
@@ -164,6 +167,14 @@ class SecurityRepository @Inject constructor(
         val isResolved = when (action.uppercase()) {
             "REMOVE" -> {
                 if (threat != null) {
+                    if (!threat.filePath.isNullOrEmpty()) {
+                        try {
+                            val file = java.io.File(threat.filePath)
+                            if (file.exists()) {
+                                file.delete()
+                            }
+                        } catch (e: Exception) {}
+                    }
                     val resolved = isThreatResolved(threat)
                     if (resolved) {
                         securityScanDao.deleteThreat(threatId)

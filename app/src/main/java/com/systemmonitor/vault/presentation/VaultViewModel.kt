@@ -342,6 +342,10 @@ class VaultViewModel @Inject constructor(
         }
     }
 
+    suspend fun getDecryptedTempFile(fileId: String): File? {
+        return storageManager.createTempDecryptedFile(fileId)
+    }
+
     fun runIntegrityCheck() {
         viewModelScope.launch {
             val files = repository.files.getAllFiles().first()
