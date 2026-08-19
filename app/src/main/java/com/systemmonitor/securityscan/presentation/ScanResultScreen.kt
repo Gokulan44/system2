@@ -98,7 +98,7 @@ fun ScanResultScreen(
             if (signature != null) {
                 val certFactory = CertificateFactory.getInstance("X.509")
                 val cert = certFactory.generateCertificate(signature.toByteArray().inputStream()) as X509Certificate
-                com.systemmonitor.securityscan.static.CertificateInfo(
+                com.systemmonitor.securityscan.staticscan.CertificateInfo(
                     subject = cert.subjectDN.name,
                     issuer = cert.issuerDN.name,
                     validFrom = cert.notBefore.toString(),

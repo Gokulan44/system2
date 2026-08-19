@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.systemmonitor.securityscan.static.CertificateInfo
+import com.systemmonitor.securityscan.staticscan.CertificateInfo
 
 @Composable
 fun CertificateCard(

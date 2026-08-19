@@ -1,11 +1,11 @@
-package com.systemmonitor.securityscan.static
+package com.systemmonitor.securityscan.staticscan
 
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ReceiverAnalyzer @Inject constructor() {
+class ProviderAnalyzer @Inject constructor() {
     fun analyze(manifest: ParsedManifest): List<ParsedComponent> {
-        return manifest.receivers
+        return manifest.providers
     }
 }

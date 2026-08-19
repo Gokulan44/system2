@@ -1,4 +1,4 @@
-package com.systemmonitor.securityscan.static
+package com.systemmonitor.securityscan.staticscan
 
 import com.systemmonitor.securityscan.input.ScanTarget
 import java.io.File

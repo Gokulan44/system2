@@ -1,4 +1,4 @@
-package com.systemmonitor.securityscan.static
+package com.systemmonitor.securityscan.staticscan
 
 import android.content.Context
 import android.content.pm.PackageManager

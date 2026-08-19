@@ -1,4 +1,4 @@
-package com.systemmonitor.securityscan.static
+package com.systemmonitor.securityscan.staticscan
 
 import java.io.File
 import java.util.regex.Pattern

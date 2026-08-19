@@ -1,6 +1,6 @@
 package com.systemmonitor.securityscan.rules
 
-import com.systemmonitor.securityscan.static.StaticAnalysisResult
+import com.systemmonitor.securityscan.staticscan.StaticAnalysisResult
 import javax.inject.Inject
 import javax.inject.Singleton
 

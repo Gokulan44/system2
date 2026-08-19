@@ -1,4 +1,4 @@
-package com.systemmonitor.securityscan.static
+package com.systemmonitor.securityscan.staticscan
 
 import javax.inject.Inject
 import javax.inject.Singleton
