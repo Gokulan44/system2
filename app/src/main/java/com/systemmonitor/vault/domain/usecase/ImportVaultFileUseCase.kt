@@ -2,20 +2,24 @@ package com.systemmonitor.vault.domain.usecase
 
 import android.net.Uri
 import com.systemmonitor.vault.database.VaultFileEntity
-import com.systemmonitor.vault.importexport.VaultImportManager
+import com.systemmonitor.vault.importing.FileImportManager
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ImportVaultFileUseCase @Inject constructor(
-    private val importManager: VaultImportManager
+    private val importManager: FileImportManager
 ) {
     suspend operator fun invoke(
         uri: Uri,
         parentId: String?,
         allowDuplicates: Boolean = false
     ): Result<VaultFileEntity> {
-        return importManager.importSingleFile(uri, parentId, allowDuplicates)
+        return importManager.importFile(
+            uri = uri,
+            parentId = parentId,
+            allowDuplicates = allowDuplicates
+        )
     }
 
     suspend fun importMultiple(

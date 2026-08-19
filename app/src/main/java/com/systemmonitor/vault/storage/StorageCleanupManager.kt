@@ -9,7 +9,7 @@ import javax.inject.Singleton
 
 @Singleton
 class StorageCleanupManager @Inject constructor(
-    private val directoryManager: VaultDirectoryManager,
+    private val directoryManager: VaultPathManager,
     private val tempFileManager: TempFileManager,
     private val fileDao: VaultFileDao
 ) {

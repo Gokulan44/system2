@@ -6,7 +6,7 @@ import javax.inject.Singleton
 
 @Singleton
 class TempFileManager @Inject constructor(
-    private val directoryManager: VaultDirectoryManager
+    private val directoryManager: VaultPathManager
 ) {
     fun createTempFile(prefix: String, suffix: String): File {
         return File.createTempFile(prefix, suffix, directoryManager.tempDir)

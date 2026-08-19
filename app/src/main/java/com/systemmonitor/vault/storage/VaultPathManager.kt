@@ -7,7 +7,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class VaultDirectoryManager @Inject constructor(
+class VaultPathManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     val encryptedDir: File = File(context.filesDir, "vault/encrypted").apply { mkdirs() }

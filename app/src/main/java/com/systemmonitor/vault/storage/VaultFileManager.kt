@@ -6,7 +6,7 @@ import javax.inject.Singleton
 
 @Singleton
 class VaultFileManager @Inject constructor(
-    private val directoryManager: VaultDirectoryManager
+    private val directoryManager: VaultPathManager
 ) {
     fun createEncryptedFile(fileId: String): File {
         return File(directoryManager.encryptedDir, fileId)

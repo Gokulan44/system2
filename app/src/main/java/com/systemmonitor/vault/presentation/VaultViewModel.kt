@@ -11,7 +11,7 @@ import com.systemmonitor.vault.database.VaultAuditEntity
 import com.systemmonitor.vault.folders.VaultFolderManager
 import com.systemmonitor.vault.importexport.ImportProgress
 import com.systemmonitor.vault.importexport.VaultExportManager
-import com.systemmonitor.vault.importexport.VaultImportManager
+import com.systemmonitor.vault.importing.FileImportManager
 import com.systemmonitor.vault.model.VaultFile
 import com.systemmonitor.vault.model.VaultFolder
 import com.systemmonitor.vault.repository.VaultRepository
@@ -66,7 +66,7 @@ data class VaultUiState(
 class VaultViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authenticator: VaultAuthenticator,
-    private val importManager: VaultImportManager,
+    private val importManager: FileImportManager,
     private val exportManager: VaultExportManager,
     private val repository: VaultRepository,
     private val folderManager: VaultFolderManager,

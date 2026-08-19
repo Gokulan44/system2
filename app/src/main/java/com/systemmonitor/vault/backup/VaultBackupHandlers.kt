@@ -4,7 +4,7 @@ import com.systemmonitor.vault.database.VaultFileDao
 import com.systemmonitor.vault.database.VaultFolderDao
 import com.systemmonitor.vault.database.VaultFolderEntity
 import com.systemmonitor.vault.database.VaultFileEntity
-import com.systemmonitor.vault.storage.VaultDirectoryManager
+import com.systemmonitor.vault.storage.VaultPathManager
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -18,7 +18,7 @@ import javax.inject.Singleton
 
 @Singleton
 class EncryptedBackupManager @Inject constructor(
-    private val directoryManager: VaultDirectoryManager,
+    private val directoryManager: VaultPathManager,
     private val fileDao: VaultFileDao,
     private val folderDao: VaultFolderDao
 ) {

@@ -16,7 +16,7 @@ import javax.inject.Singleton
 @Singleton
 class VaultStorageManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val directoryManager: VaultDirectoryManager,
+    private val directoryManager: VaultPathManager,
     private val fileManager: VaultFileManager,
     private val secureFileWriter: SecureFileWriter,
     private val secureFileReader: SecureFileReader,
