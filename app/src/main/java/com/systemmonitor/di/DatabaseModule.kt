@@ -29,6 +29,8 @@ import com.systemmonitor.features.remotepermission.data.RemotePermissionDatabase
 import com.systemmonitor.features.remotepermission.data.dao.PermissionRequestDao
 import com.systemmonitor.features.remotepermission.data.dao.PermissionHistoryDao
 import com.systemmonitor.features.remotepermission.data.dao.ResourceRequestDao
+import com.systemmonitor.notification.data.NotificationDatabase
+import com.systemmonitor.notification.data.NotificationDao
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -154,4 +156,14 @@ object DatabaseModule {
 
     @Provides
     fun provideResourceRequestDao(db: RemotePermissionDatabase): ResourceRequestDao = db.resourceRequestDao()
+
+    @Provides
+    @Singleton
+    fun provideNotificationDatabase(@ApplicationContext context: Context): NotificationDatabase =
+        Room.databaseBuilder(context, NotificationDatabase::class.java, "notifications.db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
+    fun provideNotificationDao(db: NotificationDatabase): NotificationDao = db.notificationDao()
 }

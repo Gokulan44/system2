@@ -1,13 +1,23 @@
 package com.systemmonitor.features.profile.data.repository
 
+import android.os.Build
 import com.systemmonitor.features.profile.data.dao.*
 import com.systemmonitor.features.profile.data.entity.*
 import com.systemmonitor.features.profile.domain.model.*
 import com.systemmonitor.features.profile.domain.repository.ProfileRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import java.net.NetworkInterface
+import java.text.SimpleDateFormat
+import java.util.Collections
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +32,12 @@ class ProfileRepositoryImpl @Inject constructor(
 
     private val _privacyState = MutableStateFlow(PrivacySettings())
     private val _prefsState = MutableStateFlow(UserPreferences())
+
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            initializeRealSessionData()
+        }
+    }
 
     override fun getUserProfile(): Flow<UserProfile> {
         return userProfileDao.getUserProfile().map { entity ->
@@ -62,15 +78,8 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override fun getConnectedDevices(): Flow<List<ConnectedDevice>> {
         return deviceSessionDao.getDeviceSessions().map { entities ->
-            if (entities.isEmpty()) {
-                listOf(
-                    ConnectedDevice("dev_01", "This Smartphone", "Android Mobile", "Android 14", "Active Now", true),
-                    ConnectedDevice("dev_02", "Work Laptop (Win11)", "Windows Workstation", "Windows 11 Pro", "2 hours ago", false)
-                )
-            } else {
-                entities.map {
-                    ConnectedDevice(it.deviceId, it.deviceName, it.deviceType, it.osVersion, it.lastActive, it.isCurrentDevice)
-                }
+            entities.map {
+                ConnectedDevice(it.deviceId, it.deviceName, it.deviceType, it.osVersion, it.lastActive, it.isCurrentDevice)
             }
         }
     }
@@ -82,14 +91,7 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override fun getLoginHistory(): Flow<List<LoginSession>> {
         return loginHistoryDao.getLoginHistory().map { entities ->
-            if (entities.isEmpty()) {
-                listOf(
-                    LoginSession("sess_01", "Samsung Galaxy S24", "192.168.1.42", "New York, USA", "Today, 14:22", true),
-                    LoginSession("sess_02", "Dell XPS 15 Laptop", "192.168.1.108", "New York, USA", "Yesterday, 09:15", false)
-                )
-            } else {
-                entities.map { LoginSession(it.sessionId, it.deviceName, it.ipAddress, it.location, it.loginTime, it.isCurrentSession) }
-            }
+            entities.map { LoginSession(it.sessionId, it.deviceName, it.ipAddress, it.location, it.loginTime, it.isCurrentSession) }
         }
     }
 
@@ -158,4 +160,92 @@ class ProfileRepositoryImpl @Inject constructor(
     override suspend fun signOut(): Boolean = true
 
     override suspend fun deleteAccount(): Boolean = true
+
+    private suspend fun initializeRealSessionData() {
+        try {
+            // Get current device details
+            val manufacturer = Build.MANUFACTURER
+            val model = Build.MODEL
+            val realDeviceName = if (model.startsWith(manufacturer, ignoreCase = true)) {
+                model.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+            } else {
+                manufacturer.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() } + " " + model
+            }
+            val realOsVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
+            val ipAddress = getLocalIpAddress()
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val currentTime = sdf.format(Date())
+
+            // Insert current device if not present
+            val currentDevices = deviceSessionDao.getDeviceSessions().first()
+            if (currentDevices.none { it.isCurrentDevice }) {
+                deviceSessionDao.insertDevice(
+                    DeviceSessionEntity(
+                        deviceId = "dev_current",
+                        deviceName = realDeviceName,
+                        deviceType = "Android Mobile",
+                        osVersion = realOsVersion,
+                        lastActive = "Active Now",
+                        isCurrentDevice = true
+                    )
+                )
+                // Add a mock workstation laptop for demonstration
+                deviceSessionDao.insertDevice(
+                    DeviceSessionEntity(
+                        deviceId = "dev_laptop",
+                        deviceName = "Work Laptop (Win11)",
+                        deviceType = "Windows Workstation",
+                        osVersion = "Windows 11 Pro",
+                        lastActive = "2 hours ago",
+                        isCurrentDevice = false
+                    )
+                )
+            }
+
+            // Insert current login session
+            val currentLogins = loginHistoryDao.getLoginHistory().first()
+            if (currentLogins.none { it.isCurrentSession }) {
+                loginHistoryDao.insertLoginSession(
+                    LoginHistoryEntity(
+                        sessionId = "sess_current",
+                        deviceName = realDeviceName,
+                        ipAddress = ipAddress,
+                        location = "Local Network",
+                        loginTime = currentTime,
+                        isCurrentSession = true
+                    )
+                )
+                // Add a mock login history entry
+                loginHistoryDao.insertLoginSession(
+                    LoginHistoryEntity(
+                        sessionId = "sess_laptop",
+                        deviceName = "Dell XPS 15 Laptop",
+                        ipAddress = "192.168.1.108",
+                        location = "Local Network",
+                        loginTime = "Yesterday, 09:15",
+                        isCurrentSession = false
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun getLocalIpAddress(): String {
+        try {
+            val interfaces = Collections.list(NetworkInterface.getNetworkInterfaces())
+            for (intf in interfaces) {
+                val addrs = Collections.list(intf.inetAddresses)
+                for (addr in addrs) {
+                    if (!addr.isLoopbackAddress) {
+                        val sAddr = addr.hostAddress
+                        if (sAddr != null) {
+                            val isIPv4 = sAddr.indexOf(':') < 0
+                            if (isIPv4) return sAddr
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return "127.0.0.1"
+    }
 }

@@ -18,6 +18,13 @@ import com.systemmonitor.vault.repository.VaultRepository
 import com.systemmonitor.vault.security.VaultSecurityManager
 import com.systemmonitor.vault.storage.VaultStorageManager
 import com.systemmonitor.vault.trash.VaultTrashManager
+import com.systemmonitor.vault.domain.model.VaultIntegrityStatus
+import com.systemmonitor.vault.domain.usecase.ImportVaultFileUseCase
+import com.systemmonitor.vault.domain.usecase.GetVaultFilesUseCase
+import com.systemmonitor.vault.domain.usecase.VerifyVaultIntegrityUseCase
+import com.systemmonitor.vault.domain.usecase.DecryptVaultFileUseCase
+import com.systemmonitor.vault.domain.usecase.ExportVaultFileUseCase
+import com.systemmonitor.vault.domain.usecase.DeleteVaultFileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -66,7 +73,13 @@ class VaultViewModel @Inject constructor(
     private val storageManager: VaultStorageManager,
     private val trashManager: VaultTrashManager,
     private val securityManager: VaultSecurityManager,
-    private val backupManager: VaultBackupManager
+    private val backupManager: VaultBackupManager,
+    private val importVaultFileUseCase: ImportVaultFileUseCase,
+    private val getVaultFilesUseCase: GetVaultFilesUseCase,
+    private val verifyVaultIntegrityUseCase: VerifyVaultIntegrityUseCase,
+    private val decryptVaultFileUseCase: DecryptVaultFileUseCase,
+    private val exportVaultFileUseCase: ExportVaultFileUseCase,
+    private val deleteVaultFileUseCase: DeleteVaultFileUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VaultUiState())
@@ -74,7 +87,7 @@ class VaultViewModel @Inject constructor(
 
     private val currentFolderIdFlow = MutableStateFlow<String?>(null)
 
-    val allVaultFiles: StateFlow<List<VaultFile>> = repository.files.getAllFiles()
+    val allVaultFiles: StateFlow<List<VaultFile>> = getVaultFilesUseCase.getAllFiles()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val vaultAnalysis: StateFlow<VaultAnalysisState> = allVaultFiles.map { files ->
@@ -139,6 +152,7 @@ class VaultViewModel @Inject constructor(
         checkSetupStatus()
         observeCurrentFolderContents()
         observeImportProgress()
+        decryptVaultFileUseCase.cleanupTempFiles()
     }
 
     private fun checkSetupStatus() {
@@ -165,7 +179,7 @@ class VaultViewModel @Inject constructor(
             currentFolderIdFlow.flatMapLatest { folderId ->
                 combine(
                     repository.folders.getFoldersInFolder(folderId),
-                    repository.files.getFilesInFolder(folderId)
+                    getVaultFilesUseCase(folderId)
                 ) { folders, files ->
                     val breadcrumbs = folderManager.folderTree.buildBreadcrumbPath(folderId)
                     Triple(folders, files, breadcrumbs)
@@ -274,7 +288,7 @@ class VaultViewModel @Inject constructor(
 
     fun importFile(uri: Uri) {
         viewModelScope.launch {
-            val result = importManager.importSingleFile(uri, currentFolderIdFlow.value, allowDuplicates = true)
+            val result = importVaultFileUseCase(uri, currentFolderIdFlow.value, allowDuplicates = true)
             if (result.isFailure) {
                 val err = result.exceptionOrNull()?.message ?: "Import failed"
                 _uiState.update { it.copy(errorMessage = err) }
@@ -285,7 +299,7 @@ class VaultViewModel @Inject constructor(
     fun importFiles(uris: List<Uri>) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
-            val results = importManager.importMultipleFiles(uris, currentFolderIdFlow.value, allowDuplicates = true)
+            val results = importVaultFileUseCase.importMultiple(uris, currentFolderIdFlow.value, allowDuplicates = true)
             val failures = results.filter { it.isFailure }
             if (failures.isNotEmpty()) {
                 val err = "Import completed with ${failures.size} error(s)"
@@ -296,7 +310,7 @@ class VaultViewModel @Inject constructor(
 
     fun deleteFile(fileId: String) {
         viewModelScope.launch {
-            trashManager.moveToTrash(fileId)
+            deleteVaultFileUseCase(fileId)
         }
     }
 
@@ -310,7 +324,7 @@ class VaultViewModel @Inject constructor(
 
     fun exportFile(fileId: String, outputUri: Uri, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
         viewModelScope.launch {
-            val result = exportManager.exportSingleFile(fileId, outputUri)
+            val result = exportVaultFileUseCase(fileId, outputUri)
             if (result.isSuccess) {
                 onSuccess()
             } else {
@@ -322,7 +336,7 @@ class VaultViewModel @Inject constructor(
 
     fun openFileViewer(file: VaultFile) {
         viewModelScope.launch {
-            val tempFile = storageManager.createTempDecryptedFile(file.id)
+            val tempFile = decryptVaultFileUseCase(file.id)
             if (tempFile != null && tempFile.exists()) {
                 _uiState.update { it.copy(viewingFile = file, tempViewingFile = tempFile) }
                 logEvent("FILE_VIEW", "Opened sandboxed preview for file: '${file.name}'")
@@ -338,21 +352,21 @@ class VaultViewModel @Inject constructor(
         _uiState.update { it.copy(viewingFile = null, tempViewingFile = null) }
         viewModelScope.launch {
             currentTemp?.delete()
-            storageManager.cleanupTempFiles()
+            decryptVaultFileUseCase.cleanupTempFiles()
         }
     }
 
     suspend fun getDecryptedTempFile(fileId: String): File? {
-        return storageManager.createTempDecryptedFile(fileId)
+        return decryptVaultFileUseCase(fileId)
     }
 
     fun runIntegrityCheck() {
         viewModelScope.launch {
-            val files = repository.files.getAllFiles().first()
+            val files = getVaultFilesUseCase.getAllFiles().first()
             var corrupted = 0
             for (file in files) {
-                val check = securityManager.fileIntegrityManager.verifyIntegrity(file.id)
-                if (check is com.systemmonitor.vault.security.FileIntegrityManager.IntegrityResult.Corrupted) {
+                val check = verifyVaultIntegrityUseCase(file.id)
+                if (check is VaultIntegrityStatus.Corrupted) {
                     corrupted++
                 }
             }
@@ -405,6 +419,6 @@ class VaultViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        storageManager.cleanupTempFiles()
+        decryptVaultFileUseCase.cleanupTempFiles()
     }
 }

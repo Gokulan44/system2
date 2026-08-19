@@ -2,6 +2,11 @@ package com.systemmonitor.vault.presentation
 
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.VideoView
+import android.widget.MediaController
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1377,6 +1382,13 @@ fun SecureFileViewerDialog(
                         file.mimeType.startsWith("image/", ignoreCase = true) ||
                         file.name.substringAfterLast('.', "").lowercase() in listOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif", "svg", "tiff", "raw", "dng", "ico")
 
+                val isVideo = file.fileType == VaultFileType.VIDEO ||
+                        file.mimeType.startsWith("video/", ignoreCase = true) ||
+                        file.name.substringAfterLast('.', "").lowercase() in listOf("mp4", "mkv", "mov", "avi", "webm", "3gp", "flv", "m4v", "ts")
+
+                val isPdf = file.name.endsWith(".pdf", ignoreCase = true) ||
+                        file.mimeType.contains("pdf", ignoreCase = true)
+
                 when {
                     isImage -> {
                         val bitmap = remember(tempFile) {
@@ -1395,6 +1407,12 @@ fun SecureFileViewerDialog(
                         } else {
                             Text("Failed to decode decrypted image", color = Color.White)
                         }
+                    }
+                    isVideo -> {
+                        VideoViewer(tempFile = tempFile)
+                    }
+                    isPdf -> {
+                        PdfViewer(tempFile = tempFile)
                     }
                     file.fileType == VaultFileType.DOCUMENT -> {
                         var textContent by remember { mutableStateOf<String?>(null) }
@@ -1452,6 +1470,137 @@ fun SecureFileViewerDialog(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun VideoViewer(tempFile: File, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                VideoView(ctx).apply {
+                    setVideoPath(tempFile.absolutePath)
+                    val controller = MediaController(ctx)
+                    controller.setAnchorView(this)
+                    setMediaController(controller)
+                    setOnPreparedListener { start() }
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+@Composable
+fun PdfViewer(tempFile: File, modifier: Modifier = Modifier) {
+    var pdfRenderer by remember(tempFile) { mutableStateOf<PdfRenderer?>(null) }
+    var pageCount by remember(tempFile) { mutableStateOf(0) }
+    var currentPage by remember { mutableStateOf(0) }
+    var pageBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(tempFile) {
+        var pfd: ParcelFileDescriptor? = null
+        try {
+            pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
+            val renderer = PdfRenderer(pfd)
+            pdfRenderer = renderer
+            pageCount = renderer.pageCount
+        } catch (e: Exception) {
+            errorMessage = "Failed to load PDF: ${e.message}"
+        }
+
+        onDispose {
+            try {
+                pdfRenderer?.close()
+            } catch (_: Exception) {}
+            try {
+                pfd?.close()
+            } catch (_: Exception) {}
+        }
+    }
+
+    LaunchedEffect(pdfRenderer, currentPage) {
+        val renderer = pdfRenderer ?: return@LaunchedEffect
+        if (pageCount > 0 && currentPage in 0 until pageCount) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val page = renderer.openPage(currentPage)
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        page.width, page.height, android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    pageBitmap = bitmap
+                    page.close()
+                } catch (e: Exception) {
+                    errorMessage = "Failed to render page: ${e.message}"
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (errorMessage != null) {
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text(text = errorMessage!!, color = Color.Red, fontSize = 14.sp)
+            }
+        } else if (pageBitmap != null) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.Image(
+                    bitmap = pageBitmap!!.asImageBitmap(),
+                    contentDescription = "PDF Page ${currentPage + 1}",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { if (currentPage > 0) currentPage-- },
+                    enabled = currentPage > 0,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B))
+                ) {
+                    Text("Previous", color = Color.White)
+                }
+
+                Text(
+                    text = "Page ${currentPage + 1} of $pageCount",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Button(
+                    onClick = { if (currentPage < pageCount - 1) currentPage++ },
+                    enabled = currentPage < pageCount - 1,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B))
+                ) {
+                    Text("Next", color = Color.White)
+                }
+            }
+        } else {
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color(0xFFEC4899))
             }
         }
     }

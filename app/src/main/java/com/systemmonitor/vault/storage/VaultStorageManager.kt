@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.systemmonitor.vault.database.VaultFileDao
 import com.systemmonitor.vault.database.VaultFileEntity
+import com.systemmonitor.vault.importexport.FileHashManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,6 +22,7 @@ class VaultStorageManager @Inject constructor(
     private val secureFileReader: SecureFileReader,
     private val tempFileManager: TempFileManager,
     private val cleanupManager: StorageCleanupManager,
+    private val fileHashManager: FileHashManager,
     private val fileDao: VaultFileDao
 ) {
     suspend fun importFile(
@@ -30,11 +32,12 @@ class VaultStorageManager @Inject constructor(
         parentId: String?,
         fileHash: String? = null
     ): Result<VaultFileEntity> = withContext(Dispatchers.IO) {
+        var tempSourceFile: File? = null
         try {
             val contentResolver = context.contentResolver
             
             // 1. Create temporary source file from Uri
-            val tempSourceFile = tempFileManager.createTempFile("import_", "_source")
+            tempSourceFile = tempFileManager.createTempFile("import_", "_source")
             contentResolver.openInputStream(uri)?.use { inputStream ->
                 tempSourceFile.outputStream().use { outputStream ->
                     inputStream.copyTo(outputStream)
@@ -47,7 +50,11 @@ class VaultStorageManager @Inject constructor(
 
             // 2. Encrypt temp file to target location
             secureFileWriter.writeEncryptedFile(tempSourceFile, localEncryptedFile)
-            tempFileManager.deleteTempFile(tempSourceFile)
+            val checksum = try {
+                fileHashManager.calculateSha256(localEncryptedFile)
+            } catch (e: Exception) {
+                null
+            }
 
             // 3. Save details to Room DB
             val entity = VaultFileEntity(
@@ -58,12 +65,15 @@ class VaultStorageManager @Inject constructor(
                 sizeBytes = sizeBytes,
                 parentId = parentId,
                 createdAt = System.currentTimeMillis(),
-                fileHash = fileHash
+                fileHash = fileHash,
+                checksum = checksum
             )
             fileDao.insertFile(entity)
             Result.success(entity)
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            tempSourceFile?.let { tempFileManager.deleteTempFile(it) }
         }
     }
 
@@ -71,6 +81,7 @@ class VaultStorageManager @Inject constructor(
         fileId: String,
         outputUri: Uri
     ): Result<Boolean> = withContext(Dispatchers.IO) {
+        var tempDecryptedFile: File? = null
         try {
             val entity = fileDao.getFileById(fileId) ?: return@withContext Result.failure(Exception("File not found in database"))
             val encryptedFile = File(entity.localPath)
@@ -79,7 +90,7 @@ class VaultStorageManager @Inject constructor(
             }
 
             // 1. Decrypt to temporary file
-            val tempDecryptedFile = tempFileManager.createTempFile("export_", "_decrypted")
+            tempDecryptedFile = tempFileManager.createTempFile("export_", "_decrypted")
             secureFileReader.readDecryptedFile(encryptedFile, tempDecryptedFile)
 
             // 2. Write to target Uri
@@ -90,10 +101,11 @@ class VaultStorageManager @Inject constructor(
                 }
             } ?: return@withContext Result.failure(Exception("Failed to open output stream"))
 
-            tempFileManager.deleteTempFile(tempDecryptedFile)
             Result.success(true)
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            tempDecryptedFile?.let { tempFileManager.deleteTempFile(it) }
         }
     }
 
