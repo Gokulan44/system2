@@ -5,7 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.systemmonitor.vault.authentication.AuthenticationResult
-import com.systemmonitor.vault.authentication.VaultAuthenticator
+import com.systemmonitor.vault.authentication.VaultAuthManager
 import com.systemmonitor.vault.backup.VaultBackupManager
 import com.systemmonitor.vault.database.VaultAuditEntity
 import com.systemmonitor.vault.folders.VaultFolderManager
@@ -65,7 +65,7 @@ data class VaultUiState(
 @HiltViewModel
 class VaultViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val authenticator: VaultAuthenticator,
+    private val authenticator: VaultAuthManager,
     private val importManager: FileImportManager,
     private val exportManager: VaultExportManager,
     private val repository: VaultRepository,

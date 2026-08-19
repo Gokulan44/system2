@@ -3,6 +3,7 @@ package com.systemmonitor.vault.importexport
 import android.content.Context
 import android.net.Uri
 import com.systemmonitor.vault.database.VaultFileEntity
+import com.systemmonitor.vault.security.FileHashManager
 import com.systemmonitor.vault.repository.VaultAuditRepository
 import com.systemmonitor.vault.storage.VaultStorageManager
 import dagger.hilt.android.qualifiers.ApplicationContext

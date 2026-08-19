@@ -1,4 +1,4 @@
-package com.systemmonitor.vault.crypto
+package com.systemmonitor.vault.encryption
 
 object CryptoConstants {
     const val ANDROID_KEYSTORE = "AndroidKeyStore"

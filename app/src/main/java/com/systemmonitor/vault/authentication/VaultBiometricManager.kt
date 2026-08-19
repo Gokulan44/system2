@@ -10,7 +10,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BiometricAuthenticator @Inject constructor(
+class VaultBiometricManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     fun isBiometricAvailable(): Boolean {

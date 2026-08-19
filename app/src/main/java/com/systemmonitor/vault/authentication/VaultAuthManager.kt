@@ -5,36 +5,37 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class VaultAuthenticator @Inject constructor(
-    private val pinAuthenticator: PinAuthenticator,
-    private val passwordAuthenticator: PasswordAuthenticator,
-    private val biometricAuthenticator: BiometricAuthenticator,
-    private val sessionManager: VaultSessionManager
+class VaultAuthManager @Inject constructor(
+    private val pinManager: VaultPinManager,
+    private val passwordManager: VaultPasswordManager,
+    private val biometricManager: VaultBiometricManager,
+    private val patternManager: VaultPatternManager,
+    private val lockManager: VaultLockManager
 ) {
     fun isSetup(): Boolean {
-        return pinAuthenticator.isPinSetup() || passwordAuthenticator.isPasswordSetup()
+        return pinManager.isPinSetup() || passwordManager.isPasswordSetup() || patternManager.isPatternSetup()
     }
 
     fun setupPin(pin: String): Boolean {
-        val success = pinAuthenticator.setupPin(pin)
+        val success = pinManager.setupPin(pin)
         if (success) {
-            sessionManager.startSession()
+            lockManager.startSession()
         }
         return success
     }
 
     fun authenticatePin(pin: String): AuthenticationResult {
-        val result = pinAuthenticator.authenticate(pin)
+        val result = pinManager.authenticate(pin)
         if (result is AuthenticationResult.Success) {
-            sessionManager.startSession()
+            lockManager.startSession()
         }
         return result
     }
 
     fun authenticatePassword(password: String): AuthenticationResult {
-        val result = passwordAuthenticator.authenticate(password)
+        val result = passwordManager.authenticate(password)
         if (result is AuthenticationResult.Success) {
-            sessionManager.startSession()
+            lockManager.startSession()
         }
         return result
     }
@@ -44,10 +45,10 @@ class VaultAuthenticator @Inject constructor(
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        biometricAuthenticator.authenticate(
+        biometricManager.authenticate(
             activity = activity,
             onSuccess = {
-                sessionManager.startSession()
+                lockManager.startSession()
                 onSuccess()
             },
             onError = onError
@@ -55,10 +56,10 @@ class VaultAuthenticator @Inject constructor(
     }
 
     fun lockVault() {
-        sessionManager.endSession()
+        lockManager.endSession()
     }
 
     fun isUnlocked(): Boolean {
-        return sessionManager.checkSessionValid()
+        return lockManager.checkSessionValid()
     }
 }

@@ -7,7 +7,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PasswordAuthenticator @Inject constructor(
+class VaultPasswordManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val lockoutManager: LockoutManager
 ) {

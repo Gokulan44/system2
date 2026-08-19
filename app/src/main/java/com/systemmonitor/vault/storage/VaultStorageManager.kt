@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.systemmonitor.vault.database.VaultFileDao
 import com.systemmonitor.vault.database.VaultFileEntity
-import com.systemmonitor.vault.importexport.FileHashManager
+import com.systemmonitor.vault.security.FileHashManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,13 +30,34 @@ class VaultStorageManager @Inject constructor(
         fileName: String,
         mimeType: String,
         parentId: String?,
-        fileHash: String? = null
+        allowDuplicates: Boolean = false
+    ): Result<VaultFileEntity> {
+        return importFileInternal(uri, fileName, mimeType, parentId, fileHash = null, allowDuplicates = allowDuplicates)
+    }
+
+    suspend fun importFile(
+        uri: Uri,
+        fileName: String,
+        mimeType: String,
+        parentId: String?,
+        fileHash: String?
+    ): Result<VaultFileEntity> {
+        return importFileInternal(uri, fileName, mimeType, parentId, fileHash = fileHash, allowDuplicates = true)
+    }
+
+    private suspend fun importFileInternal(
+        uri: Uri,
+        fileName: String,
+        mimeType: String,
+        parentId: String?,
+        fileHash: String?,
+        allowDuplicates: Boolean
     ): Result<VaultFileEntity> = withContext(Dispatchers.IO) {
         var tempSourceFile: File? = null
         try {
             val contentResolver = context.contentResolver
             
-            // 1. Create temporary source file from Uri
+            // 1. Create temporary source file from Uri (OPEN URI STREAM EXACTLY ONCE)
             tempSourceFile = tempFileManager.createTempFile("import_", "_source")
             contentResolver.openInputStream(uri)?.use { inputStream ->
                 tempSourceFile.outputStream().use { outputStream ->
@@ -45,10 +66,31 @@ class VaultStorageManager @Inject constructor(
             } ?: return@withContext Result.failure(Exception("Failed to open Uri input stream"))
 
             val sizeBytes = tempSourceFile.length()
+            if (sizeBytes <= 0) {
+                return@withContext Result.failure(Exception("Imported file is empty (0 bytes)"))
+            }
+
+            // 2. Resolve original hash from local temp file
+            val finalHash = fileHash ?: try {
+                tempSourceFile.inputStream().use {
+                    fileHashManager.calculateSha256(it)
+                }
+            } catch (e: Exception) {
+                null
+            }
+
+            // 3. Duplicate check
+            if (!allowDuplicates && finalHash != null) {
+                val duplicate = fileDao.getFileByHash(finalHash)
+                if (duplicate != null) {
+                    return@withContext Result.failure(Exception("Duplicate file already exists in vault: ${duplicate.name}"))
+                }
+            }
+
             val id = UUID.randomUUID().toString()
             val localEncryptedFile = fileManager.createEncryptedFile(id)
 
-            // 2. Encrypt temp file to target location
+            // 4. Encrypt temp file to target location
             secureFileWriter.writeEncryptedFile(tempSourceFile, localEncryptedFile)
             val checksum = try {
                 fileHashManager.calculateSha256(localEncryptedFile)
@@ -56,7 +98,7 @@ class VaultStorageManager @Inject constructor(
                 null
             }
 
-            // 3. Save details to Room DB
+            // 5. Save details to Room DB
             val entity = VaultFileEntity(
                 id = id,
                 name = fileName,
@@ -65,7 +107,7 @@ class VaultStorageManager @Inject constructor(
                 sizeBytes = sizeBytes,
                 parentId = parentId,
                 createdAt = System.currentTimeMillis(),
-                fileHash = fileHash,
+                fileHash = finalHash,
                 checksum = checksum
             )
             fileDao.insertFile(entity)

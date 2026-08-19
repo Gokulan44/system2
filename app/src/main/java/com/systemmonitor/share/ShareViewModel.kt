@@ -3,7 +3,7 @@ package com.systemmonitor.share
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.systemmonitor.vault.authentication.VaultAuthenticator
+import com.systemmonitor.vault.authentication.VaultAuthManager
 import com.systemmonitor.vault.authentication.AuthenticationResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +27,7 @@ data class ShareUiState(
 class ShareViewModel @Inject constructor(
     private val intentParser: ShareIntentParser,
     private val fileResolver: SharedFileResolver,
-    private val authenticator: VaultAuthenticator,
+    private val authenticator: VaultAuthManager,
     private val shareImportManager: ShareImportManager
 ) : ViewModel() {
 

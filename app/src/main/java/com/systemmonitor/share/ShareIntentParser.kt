@@ -9,27 +9,46 @@ import javax.inject.Singleton
 @Singleton
 class ShareIntentParser @Inject constructor() {
     fun parseShareIntent(intent: Intent): List<Uri> {
+        val uris = mutableListOf<Uri>()
+
+        // 1. Extract from ClipData (modern Android standard for single/multiple shares)
+        intent.clipData?.let { clipData ->
+            for (i in 0 until clipData.itemCount) {
+                clipData.getItemAt(i).uri?.let { uris.add(it) }
+            }
+        }
+
+        if (uris.isNotEmpty()) {
+            return uris.filterNotNull().distinct()
+        }
+
+        // 2. Fallback to EXTRA_STREAM and data URI
         val action = intent.action
-        return when (action) {
+        when (action) {
             Intent.ACTION_SEND -> {
-                // For backward compatibility on Android 13+
                 val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
                 } else {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
                 }
-                if (uri != null) listOf(uri) else emptyList()
-            }
-            Intent.ACTION_SEND_MULTIPLE -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java) ?: emptyList()
+                if (uri != null) {
+                    uris.add(uri)
                 } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM) ?: emptyList()
+                    intent.data?.let { uris.add(it) }
                 }
             }
-            else -> emptyList()
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val extraUris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                }
+                extraUris?.let { uris.addAll(it) }
+            }
         }
+
+        return uris.filterNotNull().distinct()
     }
 }

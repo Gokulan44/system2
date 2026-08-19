@@ -1,4 +1,4 @@
-package com.systemmonitor.vault.crypto
+package com.systemmonitor.vault.encryption
 
 import java.io.InputStream
 import java.io.OutputStream
@@ -22,7 +22,6 @@ class AesGcmCipher @Inject constructor(
         val spec = GCMParameterSpec(CryptoConstants.TAG_SIZE_BITS, iv)
         cipher.init(Cipher.ENCRYPT_MODE, key, spec)
 
-        // Write IV to start of file
         outputStream.write(iv)
 
         val buffer = ByteArray(CryptoConstants.BUFFER_SIZE_BYTES)

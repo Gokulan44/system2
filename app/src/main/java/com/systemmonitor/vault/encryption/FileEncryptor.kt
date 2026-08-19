@@ -1,4 +1,4 @@
-package com.systemmonitor.vault.crypto
+package com.systemmonitor.vault.encryption
 
 import java.io.File
 import java.io.FileInputStream
@@ -8,14 +8,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class DecryptionEngine @Inject constructor(
+class FileEncryptor @Inject constructor(
     private val aesGcmCipher: AesGcmCipher,
-    private val masterKeyManager: MasterKeyManager
+    private val keyManager: VaultKeyManager
 ) {
-    fun decryptFile(inputFile: File, outputFile: File, key: SecretKey = masterKeyManager.getMasterKey()) {
+    fun encryptFile(inputFile: File, outputFile: File, key: SecretKey = keyManager.getMasterKey()) {
         FileInputStream(inputFile).use { fis ->
             FileOutputStream(outputFile).use { fos ->
-                aesGcmCipher.decryptStream(fis, fos, key)
+                aesGcmCipher.encryptStream(fis, fos, key)
             }
         }
     }

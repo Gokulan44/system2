@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.systemmonitor.vault.database.VaultFileEntity
 import com.systemmonitor.vault.importexport.DuplicateFileDetector
-import com.systemmonitor.vault.importexport.FileHashManager
+import com.systemmonitor.vault.security.FileHashManager
 import com.systemmonitor.vault.importexport.ImportProgress
 import com.systemmonitor.vault.importexport.ImportStatus
 import com.systemmonitor.vault.storage.VaultStorageManager
@@ -47,29 +47,6 @@ class FileImportManager @Inject constructor(
                 return Result.failure(Exception(err))
             }
 
-            // Compute hash
-            _importProgress.value = ImportProgress(
-                status = ImportStatus.CHECKING_DUPLICATES,
-                currentFileName = metadata.fileName
-            )
-            val fileHash = try {
-                context.contentResolver.openInputStream(uri)?.use {
-                    fileHashManager.calculateSha256(it)
-                }
-            } catch (e: Exception) {
-                null
-            }
-
-            // Check for duplicate imports
-            if (!allowDuplicates && fileHash != null) {
-                val duplicate = duplicateDetector.findDuplicateByHash(fileHash)
-                if (duplicate != null) {
-                    val err = "Duplicate file already exists in vault: ${duplicate.name}"
-                    _importProgress.value = ImportProgress(status = ImportStatus.FAILED, errorMessage = err)
-                    return Result.failure(Exception(err))
-                }
-            }
-
             // Encrypt to target location and persist to database
             _importProgress.value = ImportProgress(
                 status = ImportStatus.ENCRYPTING,
@@ -81,7 +58,7 @@ class FileImportManager @Inject constructor(
                 fileName = metadata.fileName,
                 mimeType = metadata.mimeType,
                 parentId = parentId,
-                fileHash = fileHash
+                allowDuplicates = allowDuplicates
             )
 
             return if (result.isSuccess) {

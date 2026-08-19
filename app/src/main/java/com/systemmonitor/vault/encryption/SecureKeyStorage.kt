@@ -1,4 +1,4 @@
-package com.systemmonitor.vault.crypto
+package com.systemmonitor.vault.encryption
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -9,8 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class KeyStoreManager @Inject constructor() {
-
+class SecureKeyStorage @Inject constructor() {
     fun getOrGenerateMasterKey(alias: String = CryptoConstants.MASTER_KEY_ALIAS): SecretKey {
         val keyStore = KeyStore.getInstance(CryptoConstants.ANDROID_KEYSTORE).apply { load(null) }
         if (keyStore.containsAlias(alias)) {
