@@ -11,12 +11,16 @@ class ShareImportManager @Inject constructor(
 ) {
     suspend fun importSharedFiles(
         sharedFiles: List<SharedFile>,
+        deleteOriginalAfterImport: Boolean = true,
         onProgress: (Int, Int) -> Unit
     ): List<Result<VaultFileEntity>> {
         val results = mutableListOf<Result<VaultFileEntity>>()
         sharedFiles.forEachIndexed { index, sharedFile ->
             onProgress(index + 1, sharedFiles.size)
-            val res = importSharedFileUseCase(sharedFile)
+            val res = importSharedFileUseCase(
+                sharedFile = sharedFile,
+                deleteOriginalAfterImport = deleteOriginalAfterImport
+            )
             results.add(res)
         }
         return results

@@ -13,20 +13,28 @@ class ImportVaultFileUseCase @Inject constructor(
     suspend operator fun invoke(
         uri: Uri,
         parentId: String?,
-        allowDuplicates: Boolean = false
+        allowDuplicates: Boolean = false,
+        deleteOriginalAfterImport: Boolean = true
     ): Result<VaultFileEntity> {
         return importManager.importFile(
             uri = uri,
             parentId = parentId,
-            allowDuplicates = allowDuplicates
+            allowDuplicates = allowDuplicates,
+            deleteOriginalAfterImport = deleteOriginalAfterImport
         )
     }
 
     suspend fun importMultiple(
         uris: List<Uri>,
         parentId: String?,
-        allowDuplicates: Boolean = false
+        allowDuplicates: Boolean = false,
+        deleteOriginalAfterImport: Boolean = true
     ): List<Result<VaultFileEntity>> {
-        return importManager.importMultipleFiles(uris, parentId, allowDuplicates)
+        return importManager.importMultipleFiles(
+            uris = uris,
+            parentId = parentId,
+            allowDuplicates = allowDuplicates,
+            deleteOriginalAfterImport = deleteOriginalAfterImport
+        )
     }
 }

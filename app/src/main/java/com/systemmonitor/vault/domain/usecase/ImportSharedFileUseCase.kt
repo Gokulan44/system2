@@ -12,7 +12,10 @@ class ImportSharedFileUseCase @Inject constructor(
     private val fileImportManager: FileImportManager,
     private val validationManager: ShareValidationManager
 ) {
-    suspend operator fun invoke(sharedFile: SharedFile): Result<VaultFileEntity> {
+    suspend operator fun invoke(
+        sharedFile: SharedFile,
+        deleteOriginalAfterImport: Boolean = true
+    ): Result<VaultFileEntity> {
         val validationResult = validationManager.validate(sharedFile)
         if (validationResult.isFailure) {
             return Result.failure(validationResult.exceptionOrNull() ?: Exception("Validation failed"))
@@ -20,7 +23,8 @@ class ImportSharedFileUseCase @Inject constructor(
         return fileImportManager.importFile(
             uri = sharedFile.uri,
             name = sharedFile.name,
-            mimeType = sharedFile.mimeType
+            mimeType = sharedFile.mimeType,
+            deleteOriginalAfterImport = deleteOriginalAfterImport
         )
     }
 }

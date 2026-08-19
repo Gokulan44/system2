@@ -19,14 +19,30 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 
+/**
+ * Represents what the scan engine is actually doing right now, so the radar
+ * animation can plot blips tied to real work instead of decorative decoys.
+ *
+ * Wire this from whatever emits per-item scan progress (e.g. a
+ * StateFlow<ScanProgress> updated inside your scan loop / worker) — see
+ * usage note at the bottom of this file for what that loop needs to expose.
+ */
+data class ScanProgress(
+    val currentItemId: String? = null,
+    val recentlyScannedIds: List<String> = emptyList(),
+    val itemsScanned: Int = 0,
+    val totalItems: Int = 0
+)
+
 @Composable
 fun ScanAnimationView(
     isScanning: Boolean,
     threats: List<com.systemmonitor.features.security.domain.model.ThreatInfo>,
+    scanProgress: ScanProgress? = null,
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "RadarSweep")
-    
+
     // Core radar rotation angle
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -48,7 +64,7 @@ fun ScanAnimationView(
         ),
         label = "OuterHUDLockAngle"
     )
-    
+
     // Expanding glowing wave pulses
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 0.5f,
@@ -59,7 +75,7 @@ fun ScanAnimationView(
         ),
         label = "PulseScale"
     )
-    
+
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.8f,
         targetValue = 0f,
@@ -70,8 +86,8 @@ fun ScanAnimationView(
         label = "PulseAlpha"
     )
 
-    // Threat detection target blips (fading/pulsing)
-    val blip1Alpha by infiniteTransition.animateFloat(
+    // Fade curve reused for both real-progress blips and real-threat blips
+    val blipAlpha by infiniteTransition.animateFloat(
         initialValue = 0.1f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
@@ -84,23 +100,7 @@ fun ScanAnimationView(
             },
             repeatMode = RepeatMode.Restart
         ),
-        label = "Blip1Alpha"
-    )
-
-    val blip2Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.1f,
-        targetValue = 0.9f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                durationMillis = 3000
-                0.1f at 0
-                0.2f at 1000
-                0.9f at 1800
-                0.1f at 3000
-            },
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Blip2Alpha"
+        label = "BlipAlpha"
     )
 
     Box(
@@ -185,55 +185,38 @@ fun ScanAnimationView(
                     )
                 }
 
-                // 6. Draw Threat Blips (Faintly detected active items)
-                if (threats.isEmpty()) {
-                    // Draw normal search decoy green dots to look premium
-                    val blip1Pos = Offset(center.x + baseRadius * 0.8f, center.y - baseRadius * 0.7f)
+                // 6a. Draw REAL in-progress blips: the actual items the scan
+                // loop is currently touching. No decoys — if no progress data
+                // was supplied, nothing is drawn here (honest empty state).
+                scanProgress?.recentlyScannedIds?.forEach { id ->
+                    val pos = blipPositionForId(id, center, baseRadius)
                     drawCircle(
-                        color = Color(0xFF10B981).copy(alpha = blip1Alpha * 0.5f),
+                        color = Color(0xFF10B981).copy(alpha = blipAlpha * 0.6f),
                         radius = 4.dp.toPx(),
-                        center = blip1Pos
+                        center = pos
                     )
                     drawCircle(
-                        color = Color(0xFF10B981).copy(alpha = blip1Alpha * 0.15f),
+                        color = Color(0xFF10B981).copy(alpha = blipAlpha * 0.18f),
                         radius = 10.dp.toPx(),
-                        center = blip1Pos
+                        center = pos
                     )
+                }
 
-                    val blip2Pos = Offset(center.x - baseRadius * 0.9f, center.y + baseRadius * 0.5f)
+                // 6b. Draw REAL threat blips detected so far, in bright red.
+                threats.forEach { threat ->
+                    val id = threat.packageName ?: threat.id
+                    val pos = blipPositionForId(id, center, baseRadius)
+
                     drawCircle(
-                        color = Color(0xFF10B981).copy(alpha = blip2Alpha * 0.5f),
-                        radius = 4.dp.toPx(),
-                        center = blip2Pos
+                        color = Color(0xFFEF4444).copy(alpha = blipAlpha),
+                        radius = 5.dp.toPx(),
+                        center = pos
                     )
                     drawCircle(
-                        color = Color(0xFF10B981).copy(alpha = blip2Alpha * 0.15f),
-                        radius = 10.dp.toPx(),
-                        center = blip2Pos
+                        color = Color(0xFFEF4444).copy(alpha = blipAlpha * 0.3f),
+                        radius = 12.dp.toPx(),
+                        center = pos
                     )
-                } else {
-                    // Draw REAL threat blips detected so far in bright red
-                    threats.forEach { threat ->
-                        val hash = threat.packageName?.hashCode() ?: threat.id.hashCode()
-                        val angleRad = Math.toRadians((hash % 360).toDouble().let { if (it < 0) it + 360 else it })
-                        val distanceFactor = 0.4f + (Math.abs(hash % 5) / 10f)
-                        val blipRadius = baseRadius * distanceFactor
-
-                        val blipX = center.x + (blipRadius * Math.cos(angleRad)).toFloat()
-                        val blipY = center.y + (blipRadius * Math.sin(angleRad)).toFloat()
-                        val blipPos = Offset(blipX, blipY)
-
-                        drawCircle(
-                            color = Color(0xFFEF4444).copy(alpha = blip1Alpha),
-                            radius = 5.dp.toPx(),
-                            center = blipPos
-                        )
-                        drawCircle(
-                            color = Color(0xFFEF4444).copy(alpha = blip1Alpha * 0.3f),
-                            radius = 12.dp.toPx(),
-                            center = blipPos
-                        )
-                    }
                 }
             }
         }
@@ -252,3 +235,54 @@ fun ScanAnimationView(
         }
     }
 }
+
+/**
+ * Deterministically maps a real item id (file hash, package name, etc.) to a
+ * position on the radar. Same hashing approach as the original threat-blip
+ * placement, factored out so both progress blips and threat blips place
+ * consistently and a given id always lands in the same spot while it's
+ * visible (no jitter/flicker between recompositions).
+ */
+private fun blipPositionForId(id: String, center: Offset, baseRadius: Float): Offset {
+    val hash = id.hashCode()
+    val angleRad = Math.toRadians((hash % 360).toDouble().let { if (it < 0) it + 360 else it })
+    val distanceFactor = 0.4f + (Math.abs(hash % 5) / 10f)
+    val blipRadius = baseRadius * distanceFactor
+    val x = center.x + (blipRadius * Math.cos(angleRad)).toFloat()
+    val y = center.y + (blipRadius * Math.sin(angleRad)).toFloat()
+    return Offset(x, y)
+}
+
+/*
+ * USAGE NOTE — wiring real progress in:
+ *
+ * Your scan loop (wherever it iterates files/apps — VaultSecurityHandlers,
+ * a WorkManager worker, etc.) needs to publish a ScanProgress as it works,
+ * e.g.:
+ *
+ *   private val _scanProgress = MutableStateFlow(ScanProgress())
+ *   val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()
+ *
+ *   suspend fun runScan(items: List<ScannableItem>) {
+ *       val recent = ArrayDeque<String>(maxSize = 6)
+ *       items.forEachIndexed { index, item ->
+ *           recent.addLast(item.id)
+ *           if (recent.size > 6) recent.removeFirst()
+ *           _scanProgress.value = ScanProgress(
+ *               currentItemId = item.id,
+ *               recentlyScannedIds = recent.toList(),
+ *               itemsScanned = index + 1,
+ *               totalItems = items.size
+ *           )
+ *           // ... actual scan work on item ...
+ *       }
+ *   }
+ *
+ * Then in the screen:
+ *   val progress by viewModel.scanProgress.collectAsState()
+ *   ScanAnimationView(isScanning = ..., threats = ..., scanProgress = progress)
+ *
+ * If your scan engine doesn't currently expose per-item progress at all,
+ * that's the piece to add first — share the scan loop file and I'll wire
+ * this in directly.
+ */

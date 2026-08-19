@@ -87,7 +87,7 @@ import com.systemmonitor.features.security.presentation.result.ResolveActionsScr
 import com.systemmonitor.features.security.presentation.result.ResolveActionsViewModel
 import com.systemmonitor.features.security.presentation.result.ScanResultScreen
 import com.systemmonitor.features.security.presentation.result.SecurityReportScreen
-import com.systemmonitor.features.security.presentation.scan.SecurityScanScreen
+import com.systemmonitor.securityscan.presentation.SecurityScanScreen
 import com.systemmonitor.features.usage.AppUsageScreen
 import com.systemmonitor.features.usage.AppUsageViewModel
 import com.systemmonitor.features.usage.UsageAnalyticsScreen
@@ -339,11 +339,7 @@ fun MainScreenContainer(
                     onBackClick = { currentDestination = NavDestination.Home }
                 )
                 is NavDestination.SecurityScanProgress -> SecurityScanScreen(
-                    onScanComplete = { result ->
-                        lastScanResult = result
-                        currentDestination = NavDestination.ScanResult
-                    },
-                    onCancelClick = { currentDestination = NavDestination.SecurityCenter }
+                    onBackClick = { currentDestination = NavDestination.SecurityCenter }
                 )
                 is NavDestination.ScanResult -> {
                     val scan = lastScanResult
