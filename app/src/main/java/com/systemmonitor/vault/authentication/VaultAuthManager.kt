@@ -33,7 +33,7 @@ class VaultAuthManager @Inject constructor(
         return result
     }
 
-    fun authenticatePassword(password: String): AuthenticationResult {
+    suspend fun authenticatePassword(password: String): AuthenticationResult {
         val result = passwordManager.authenticate(password)
         if (result is AuthenticationResult.Success) {
             lockManager.startSession()

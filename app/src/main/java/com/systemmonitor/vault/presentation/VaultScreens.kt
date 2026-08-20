@@ -55,6 +55,7 @@ import com.systemmonitor.vault.model.VaultFile
 import com.systemmonitor.vault.model.VaultFileType
 import com.systemmonitor.vault.model.VaultFolder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -258,13 +259,14 @@ fun VaultSetupScreen(
 
 @Composable
 fun VaultLockScreen(
-    onUnlock: (String) -> Boolean,
+    onUnlock: suspend (String) -> Boolean,
     onReset: () -> Unit,
     onBackClick: () -> Unit
 ) {
     var pin by remember { mutableStateOf("") }
     val context = LocalContext.current
     var showResetDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -331,10 +333,12 @@ fun VaultLockScreen(
             onDigitClick = { digit ->
                 if (pin.length < 4) pin += digit
                 if (pin.length == 4) {
-                    val unlocked = onUnlock(pin)
-                    if (!unlocked) {
-                        Toast.makeText(context, "Incorrect PIN", Toast.LENGTH_SHORT).show()
-                        pin = ""
+                    scope.launch {
+                        val unlocked = onUnlock(pin)
+                        if (!unlocked) {
+                            Toast.makeText(context, "Incorrect PIN", Toast.LENGTH_SHORT).show()
+                            pin = ""
+                        }
                     }
                 }
             },

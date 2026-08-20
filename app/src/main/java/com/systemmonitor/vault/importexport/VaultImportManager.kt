@@ -29,7 +29,8 @@ class VaultImportManager @Inject constructor(
     suspend fun importSingleFile(
         uri: Uri,
         parentId: String?,
-        allowDuplicates: Boolean = false
+        allowDuplicates: Boolean = false,
+        deleteOriginalAfterImport: Boolean = false
     ): Result<VaultFileEntity> {
         _importProgress.value = ImportProgress(status = ImportStatus.VALIDATING)
 
@@ -77,6 +78,14 @@ class VaultImportManager @Inject constructor(
             parentId = parentId,
             fileHash = fileHash
         )
+
+        if (result.isSuccess && deleteOriginalAfterImport) {
+            try {
+                context.contentResolver.delete(uri, null, null)
+            } catch (e: Exception) {
+                // Best effort
+            }
+        }
 
         return if (result.isSuccess) {
             val entity = result.getOrThrow()

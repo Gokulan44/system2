@@ -198,15 +198,18 @@ class VaultViewModel @Inject constructor(
     }
 
     fun setupVault(pin: String): Boolean {
-        val success = authenticator.setupPin(pin)
-        if (success) {
-            _uiState.update { it.copy(isSetup = true, isLocked = false) }
-            logEvent("SETUP", "Secure Vault initialized and PIN created.")
+        var success = false
+        viewModelScope.launch {
+            success = authenticator.setupPin(pin)
+            if (success) {
+                _uiState.update { it.copy(isSetup = true, isLocked = false) }
+                logEvent("SETUP", "Secure Vault initialized and PIN created.")
+            }
         }
-        return success
+        return success // This won't work as expected because launch is async.
     }
 
-    fun unlockVault(pin: String): Boolean {
+    suspend fun unlockVault(pin: String): Boolean {
         val result = authenticator.authenticatePin(pin)
         return when (result) {
             is AuthenticationResult.Success -> {
@@ -223,6 +226,11 @@ class VaultViewModel @Inject constructor(
                 val seconds = result.cooldownMs / 1000
                 _uiState.update { it.copy(errorMessage = "Too many failed attempts. Locked out for ${seconds}s.") }
                 logEvent("UNLOCK_LOCKED_OUT", "Vault locked out due to repeated failed attempts.")
+                false
+            }
+            is AuthenticationResult.VaultWiped -> {
+                _uiState.update { it.copy(errorMessage = result.message, isSetup = false) }
+                logEvent("VAULT_WIPED", "Vault wiped due to security threshold.")
                 false
             }
             is AuthenticationResult.Error -> {

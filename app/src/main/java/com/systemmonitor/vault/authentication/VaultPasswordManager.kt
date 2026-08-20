@@ -9,7 +9,8 @@ import javax.inject.Singleton
 @Singleton
 class VaultPasswordManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val lockoutManager: LockoutManager
+    private val lockoutManager: LockoutManager,
+    private val wipeManager: VaultWipeManager
 ) {
     private val prefs = context.getSharedPreferences("secure_vault_prefs", Context.MODE_PRIVATE)
 
@@ -25,7 +26,7 @@ class VaultPasswordManager @Inject constructor(
         return true
     }
 
-    fun authenticate(password: String): AuthenticationResult {
+    suspend fun authenticate(password: String): AuthenticationResult {
         if (lockoutManager.isLockedOut()) {
             return AuthenticationResult.LockedOut(lockoutManager.getRemainingCooldownMs())
         }
@@ -34,16 +35,22 @@ class VaultPasswordManager @Inject constructor(
             ?: return AuthenticationResult.Error("No password configured")
 
         val hash = hashPassword(password)
-        return if (hash == savedHash) {
+        if (hash == savedHash) {
             lockoutManager.resetAttempts()
-            AuthenticationResult.Success
-        } else {
-            val remaining = lockoutManager.recordFailedAttempt()
-            if (remaining <= 0) {
-                AuthenticationResult.LockedOut(lockoutManager.getRemainingCooldownMs())
-            } else {
-                AuthenticationResult.InvalidCredentials(remaining)
+            return AuthenticationResult.Success
+        }
+
+        return when (val failure = lockoutManager.recordFailedAttempt()) {
+            is FailedAttemptResult.WipeTriggered -> {
+                wipeManager.wipeVault()
+                AuthenticationResult.VaultWiped(
+                    "Too many failed attempts. The vault has been permanently wiped for security."
+                )
             }
+            is FailedAttemptResult.LockedOut ->
+                AuthenticationResult.LockedOut(failure.cooldownMs)
+            is FailedAttemptResult.AttemptsRemaining ->
+                AuthenticationResult.InvalidCredentials(failure.remaining)
         }
     }
 
