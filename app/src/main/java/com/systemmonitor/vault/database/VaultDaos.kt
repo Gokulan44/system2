@@ -73,6 +73,9 @@ interface VaultFileDao {
     
     @Query("DELETE FROM vault_files WHERE parentId = :parentId")
     suspend fun deleteFilesByParentId(parentId: String)
+
+    @Query("DELETE FROM vault_files")
+    suspend fun deleteAllFiles()
 }
 
 @Dao

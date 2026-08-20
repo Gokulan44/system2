@@ -45,6 +45,13 @@ object DatabaseModule {
             .build()
 
     @Provides
+    @Singleton
+    fun provideVaultDatabase(@ApplicationContext context: Context): com.systemmonitor.vault.database.VaultDatabase =
+        Room.databaseBuilder(context, com.systemmonitor.vault.database.VaultDatabase::class.java, "vault_database.db")
+            .fallbackToDestructiveMigration()
+            .build()
+
+    @Provides
     fun provideBatteryDao(db: AppDatabase): BatteryDao = db.batteryDao()
 
     @Provides
@@ -72,16 +79,16 @@ object DatabaseModule {
     fun provideIntrusionEventDao(db: AppDatabase): com.systemmonitor.features.intrusion.data.dao.IntrusionEventDao = db.intrusionEventDao()
 
     @Provides
-    fun provideVaultFileDao(db: AppDatabase): com.systemmonitor.vault.database.VaultFileDao = db.vaultFileDao()
+    fun provideVaultFileDao(db: com.systemmonitor.vault.database.VaultDatabase): com.systemmonitor.vault.database.VaultFileDao = db.vaultFileDao()
 
     @Provides
-    fun provideVaultFolderDao(db: AppDatabase): com.systemmonitor.vault.database.VaultFolderDao = db.vaultFolderDao()
+    fun provideVaultFolderDao(db: com.systemmonitor.vault.database.VaultDatabase): com.systemmonitor.vault.database.VaultFolderDao = db.vaultFolderDao()
 
     @Provides
-    fun provideVaultAuditDao(db: AppDatabase): com.systemmonitor.vault.database.VaultAuditDao = db.vaultAuditDao()
+    fun provideVaultAuditDao(db: com.systemmonitor.vault.database.VaultDatabase): com.systemmonitor.vault.database.VaultAuditDao = db.vaultAuditDao()
 
     @Provides
-    fun provideVaultSettingsDao(db: AppDatabase): com.systemmonitor.vault.database.VaultSettingsDao = db.vaultSettingsDao()
+    fun provideVaultSettingsDao(db: com.systemmonitor.vault.database.VaultDatabase): com.systemmonitor.vault.database.VaultSettingsDao = db.vaultSettingsDao()
 
     @Provides
     @Singleton

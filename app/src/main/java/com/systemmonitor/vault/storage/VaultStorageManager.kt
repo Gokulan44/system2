@@ -2,6 +2,7 @@ package com.systemmonitor.vault.storage
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.systemmonitor.vault.database.VaultFileDao
 import com.systemmonitor.vault.database.VaultFileEntity
 import com.systemmonitor.vault.security.FileHashManager
@@ -25,6 +26,10 @@ class VaultStorageManager @Inject constructor(
     private val fileHashManager: FileHashManager,
     private val fileDao: VaultFileDao
 ) {
+    companion object {
+        private const val TAG = "VaultStorageManager"
+    }
+
     suspend fun importFile(
         uri: Uri,
         fileName: String,
@@ -45,6 +50,24 @@ class VaultStorageManager @Inject constructor(
         return importFileInternal(uri, fileName, mimeType, parentId, fileHash = fileHash, allowDuplicates = true)
     }
 
+    /**
+     * Copies the URI's content into [tempSourceFile], returning the number of
+     * bytes actually copied. Exists as its own function so it can be retried:
+     * some content:// providers back their data with a one-shot pipe, and a
+     * previous open elsewhere (e.g. a validator's openInputStream/close check)
+     * can leave that pipe exhausted, producing a "successful" copy of 0 bytes
+     * with no exception. A fresh openInputStream() call on retry gets a new
+     * pipe from the provider and reliably succeeds in that case.
+     */
+    private fun copyUriToFile(uri: Uri, tempSourceFile: File): Long {
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            tempSourceFile.outputStream().use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        } ?: throw Exception("Failed to open Uri input stream")
+        return tempSourceFile.length()
+    }
+
     private suspend fun importFileInternal(
         uri: Uri,
         fileName: String,
@@ -55,18 +78,31 @@ class VaultStorageManager @Inject constructor(
     ): Result<VaultFileEntity> = withContext(Dispatchers.IO) {
         var tempSourceFile: File? = null
         try {
-            val contentResolver = context.contentResolver
-            
-            // 1. Create temporary source file from Uri (OPEN URI STREAM EXACTLY ONCE)
+            // 1. Create temporary source file from Uri (OPEN URI STREAM EXACTLY ONCE
+            // per attempt — but allow ONE retry if the first attempt copies 0 bytes,
+            // since that's a known symptom of a single-use content:// pipe having
+            // already been opened/closed elsewhere before this point).
             tempSourceFile = tempFileManager.createTempFile("import_", "_source")
-            contentResolver.openInputStream(uri)?.use { inputStream ->
-                tempSourceFile.outputStream().use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            } ?: return@withContext Result.failure(Exception("Failed to open Uri input stream"))
 
-            val sizeBytes = tempSourceFile.length()
+            var sizeBytes = try {
+                copyUriToFile(uri, tempSourceFile)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to open/copy Uri stream for $uri (scheme=${uri.scheme}, authority=${uri.authority})", e)
+                return@withContext Result.failure(Exception("Failed to open Uri input stream"))
+            }
+
             if (sizeBytes <= 0) {
+                Log.w(TAG, "First copy attempt produced 0 bytes for $uri (authority=${uri.authority}) — retrying once")
+                sizeBytes = try {
+                    copyUriToFile(uri, tempSourceFile)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Retry copy also failed for $uri", e)
+                    return@withContext Result.failure(Exception("Failed to open Uri input stream"))
+                }
+            }
+
+            if (sizeBytes <= 0) {
+                Log.e(TAG, "Import produced 0 bytes for $uri after retry (scheme=${uri.scheme}, authority=${uri.authority}, path=${uri.path}) — provider likely does not support being read twice, or genuinely returned an empty file")
                 return@withContext Result.failure(Exception("Imported file is empty (0 bytes)"))
             }
 
@@ -113,6 +149,7 @@ class VaultStorageManager @Inject constructor(
             fileDao.insertFile(entity)
             Result.success(entity)
         } catch (e: Exception) {
+            Log.e(TAG, "Import failed for $uri", e)
             Result.failure(e)
         } finally {
             tempSourceFile?.let { tempFileManager.deleteTempFile(it) }
@@ -156,11 +193,11 @@ class VaultStorageManager @Inject constructor(
             val entity = fileDao.getFileById(fileId) ?: return@withContext null
             val encryptedFile = File(entity.localPath)
             if (!encryptedFile.exists()) return@withContext null
-            
+
             val extension = File(entity.name).extension.let { if (it.isNotEmpty()) ".$it" else "" }
             val tempFile = File(directoryManager.tempDir, "${fileId}_temp$extension")
             if (tempFile.exists()) tempFile.delete()
-            
+
             secureFileReader.readDecryptedFile(encryptedFile, tempFile)
             tempFile
         } catch (e: Exception) {

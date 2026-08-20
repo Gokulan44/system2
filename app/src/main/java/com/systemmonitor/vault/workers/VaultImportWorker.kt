@@ -19,14 +19,20 @@ class VaultImportWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val uriString = inputData.getString(KEY_URI) ?: return Result.failure()
         val parentId = inputData.getString(KEY_PARENT_ID)
+        val deleteOriginal = inputData.getBoolean(KEY_DELETE_ORIGINAL, true)
         val uri = Uri.parse(uriString)
 
-        val result = importManager.importSingleFile(uri, parentId)
+        val result = importManager.importSingleFile(
+            uri = uri,
+            parentId = parentId,
+            deleteOriginalAfterImport = deleteOriginal
+        )
         return if (result.isSuccess) Result.success() else Result.failure()
     }
 
     companion object {
         const val KEY_URI = "key_uri"
         const val KEY_PARENT_ID = "key_parent_id"
+        const val KEY_DELETE_ORIGINAL = "key_delete_original"
     }
 }

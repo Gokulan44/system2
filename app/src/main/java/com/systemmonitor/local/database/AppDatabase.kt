@@ -21,14 +21,7 @@ import com.systemmonitor.local.database.dao.UnlockHistoryDao
 import com.systemmonitor.local.database.entity.UnlockHistoryEntity
 import com.systemmonitor.features.intrusion.data.entity.IntrusionEventEntity
 import com.systemmonitor.features.intrusion.data.dao.IntrusionEventDao
-import com.systemmonitor.vault.database.VaultFileEntity
-import com.systemmonitor.vault.database.VaultFolderEntity
-import com.systemmonitor.vault.database.VaultFileDao
-import com.systemmonitor.vault.database.VaultFolderDao
-import com.systemmonitor.vault.database.VaultAuditEntity
-import com.systemmonitor.vault.database.VaultAuditDao
-import com.systemmonitor.vault.database.VaultSettingsEntity
-import com.systemmonitor.vault.database.VaultSettingsDao
+
 
 @Database(
     entities = [
@@ -40,13 +33,9 @@ import com.systemmonitor.vault.database.VaultSettingsDao
         WifiEntity::class,
         LaptopEntity::class,
         UnlockHistoryEntity::class,
-        IntrusionEventEntity::class,
-        VaultFileEntity::class,
-        VaultFolderEntity::class,
-        VaultAuditEntity::class,
-        VaultSettingsEntity::class
+        IntrusionEventEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -59,8 +48,4 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun laptopDao(): LaptopDao
     abstract fun unlockHistoryDao(): UnlockHistoryDao
     abstract fun intrusionEventDao(): IntrusionEventDao
-    abstract fun vaultFileDao(): VaultFileDao
-    abstract fun vaultFolderDao(): VaultFolderDao
-    abstract fun vaultAuditDao(): VaultAuditDao
-    abstract fun vaultSettingsDao(): VaultSettingsDao
 }
