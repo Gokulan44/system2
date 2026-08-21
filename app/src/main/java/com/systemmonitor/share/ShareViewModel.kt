@@ -40,10 +40,18 @@ class ShareViewModel @Inject constructor(
         rawUris = uris
         viewModelScope.launch {
             val resolved = uris.mapNotNull { fileResolver.resolveSharedFile(it) }
+            
+            val isAlreadyUnlocked = authenticator.isUnlocked()
+            
             _uiState.value = _uiState.value.copy(
                 filesToImport = resolved,
-                isAuthenticating = true
+                isAuthenticated = isAlreadyUnlocked,
+                isAuthenticating = !isAlreadyUnlocked
             )
+            
+            if (isAlreadyUnlocked) {
+                startImport()
+            }
         }
     }
 

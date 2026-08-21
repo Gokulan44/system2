@@ -9,11 +9,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backspace
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dagger.hilt.android.AndroidEntryPoint
@@ -102,41 +103,67 @@ fun ShareScreenContent(
 
             when {
                 uiState.importFinished -> {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Import Finished",
-                        color = Color(0xFF00E5FF),
+                        text = "Import Complete",
+                        color = Color.White,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = uiState.importSummary,
-                        color = Color.White,
+                        color = Color(0xFF94A3B8),
                         fontSize = 14.sp,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
                     Button(
                         onClick = onClose,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B))
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEC4899)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Done", color = Color.White)
+                        Text("Finish", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
-                uiState.isImporting -> {
-                    CircularProgressIndicator(color = Color(0xFFEC4899))
-                    Spacer(modifier = Modifier.height(16.dp))
+                uiState.isImporting || uiState.isAuthenticated -> {
+                    Box(
+                        modifier = Modifier.size(100.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = Color(0xFFEC4899),
+                            modifier = Modifier.fillMaxSize(),
+                            strokeWidth = 6.dp
+                        )
+                        Icon(
+                            Icons.Default.Security,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = uiState.importProgress,
+                        text = if (uiState.isImporting) "Securing Files..." else "Initializing...",
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
-                }
-                uiState.isAuthenticated -> {
-                    CircularProgressIndicator(color = Color(0xFFEC4899))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Authenticating success. Initializing Import...", color = Color.White)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = uiState.importProgress,
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
                 }
                 else -> {
                     var enteredPin by remember { mutableStateOf("") }
@@ -161,6 +188,60 @@ fun ShareScreenContent(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 24.dp)
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // File List Preview
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 120.dp)
+                            .background(Color(0xFF1E293B).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                            .padding(8.dp)
+                    ) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(uiState.filesToImport.size) { index ->
+                                val file = uiState.filesToImport[index]
+                                val icon = when {
+                                    file.mimeType.startsWith("image/") -> Icons.Default.Image
+                                    file.mimeType.startsWith("video/") -> Icons.Default.VideoFile
+                                    file.mimeType.contains("zip") || file.mimeType.contains("rar") -> Icons.Default.FolderZip
+                                    file.mimeType.contains("pdf") -> Icons.Default.Description
+                                    else -> Icons.Default.InsertDriveFile
+                                }
+                                val color = when {
+                                    file.mimeType.startsWith("image/") -> Color(0xFF10B981)
+                                    file.mimeType.startsWith("video/") -> Color(0xFF8B5CF6)
+                                    else -> Color(0xFF00E5FF)
+                                }
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.width(60.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .background(color.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                            .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+                                    }
+                                    Text(
+                                        text = file.name,
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 9.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -224,7 +305,7 @@ fun ShareScreenContent(
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 if (buttonText == "delete") {
-                                                    Icon(Icons.Default.Backspace, contentDescription = "Delete", tint = Color.White)
+                                                    Icon(Icons.AutoMirrored.Filled.Backspace, contentDescription = "Delete", tint = Color.White)
                                                 } else {
                                                     Text(buttonText, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                                 }

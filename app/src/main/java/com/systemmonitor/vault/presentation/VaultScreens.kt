@@ -16,6 +16,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -605,10 +606,11 @@ fun VaultHomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 12.dp)
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val categories = listOf("ALL", "IMAGES", "VIDEOS", "DOCUMENTS", "LOGS")
+                val categories = listOf("ALL", "IMAGES", "VIDEOS", "DOCUMENTS", "ARCHIVES", "APKS", "LOGS")
                 categories.forEach { cat ->
                     val selected = selectedCategory == cat
                     val bg = if (selected) Color(0xFFEC4899) else Color(0xFF1E293B).copy(alpha = 0.5f)
@@ -616,11 +618,11 @@ fun VaultHomeScreen(
                     
                     Box(
                         modifier = Modifier
-                            .weight(1.5f)
+                            .widthIn(min = 70.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(bg)
                             .clickable { selectedCategory = cat }
-                            .padding(vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -741,6 +743,8 @@ fun VaultHomeScreen(
                                     val vidWeight = analysis.videoSize / total
                                     val docWeight = analysis.documentSize / total
                                     val audWeight = analysis.audioSize / total
+                                    val arcWeight = analysis.archiveSize / total
+                                    val apkWeight = analysis.apkSize / total
                                     val othWeight = analysis.otherSize / total
 
                                     if (imgWeight > 0) {
@@ -755,6 +759,12 @@ fun VaultHomeScreen(
                                     if (audWeight > 0) {
                                         Box(modifier = Modifier.weight(audWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFF8B5CF6)))
                                     }
+                                    if (arcWeight > 0) {
+                                        Box(modifier = Modifier.weight(arcWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFFF59E0B)))
+                                    }
+                                    if (apkWeight > 0) {
+                                        Box(modifier = Modifier.weight(apkWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFF22C55E)))
+                                    }
                                     if (othWeight > 0) {
                                         Box(modifier = Modifier.weight(othWeight.coerceAtLeast(0.01f)).fillMaxHeight().background(Color(0xFF64748B)))
                                     }
@@ -768,6 +778,12 @@ fun VaultHomeScreen(
                                     AnalysisCategoryRow("Videos & Clips", analysis.videoCount, analysis.videoSize, Color(0xFFEC4899))
                                     AnalysisCategoryRow("Documents & PDFs", analysis.documentCount, analysis.documentSize, Color(0xFF10B981))
                                     AnalysisCategoryRow("Audio & Tracks", analysis.audioCount, analysis.audioSize, Color(0xFF8B5CF6))
+                                    if (analysis.archiveCount > 0) {
+                                        AnalysisCategoryRow("Archives & ZIPs", analysis.archiveCount, analysis.archiveSize, Color(0xFFF59E0B))
+                                    }
+                                    if (analysis.apkCount > 0) {
+                                        AnalysisCategoryRow("Android Apps (APK)", analysis.apkCount, analysis.apkSize, Color(0xFF22C55E))
+                                    }
                                     if (analysis.otherCount > 0) {
                                         AnalysisCategoryRow("Other Files", analysis.otherCount, analysis.otherSize, Color(0xFF64748B))
                                     }
@@ -859,6 +875,8 @@ fun VaultHomeScreen(
                         "IMAGES" -> allFiles.filter { it.fileType == VaultFileType.IMAGE }
                         "VIDEOS" -> allFiles.filter { it.fileType == VaultFileType.VIDEO }
                         "DOCUMENTS" -> allFiles.filter { it.fileType == VaultFileType.DOCUMENT }
+                        "ARCHIVES" -> allFiles.filter { it.fileType == VaultFileType.ARCHIVE }
+                        "APKS" -> allFiles.filter { it.fileType == VaultFileType.APK }
                         else -> state.files
                     }
                 }
@@ -1418,16 +1436,24 @@ fun SecureFileViewerDialog(
                     isPdf -> {
                         PdfViewer(tempFile = tempFile)
                     }
-                    file.fileType == VaultFileType.DOCUMENT -> {
+                    file.fileType == VaultFileType.DOCUMENT || file.fileType == VaultFileType.OTHER -> {
                         var textContent by remember { mutableStateOf<String?>(null) }
                         LaunchedEffect(tempFile) {
                             withContext(Dispatchers.IO) {
                                 try {
-                                    textContent = tempFile.readText(Charsets.UTF_8)
+                                    // Try to read as text if it's small enough
+                                    if (tempFile.length() < 1_000_000) {
+                                        textContent = tempFile.readText(Charsets.UTF_8)
+                                    } else {
+                                        textContent = "[File too large to preview as plain text]\n\n" +
+                                                "File Name: ${file.name}\n" +
+                                                "File Size: ${formatBytes(file.sizeBytes)}\n" +
+                                                "MIME Type: ${file.mimeType}"
+                                    }
                                 } catch (e: Exception) {
-                                    textContent = "[Unable to read document as plain text: binary or unsupported format]\n\n" +
+                                    textContent = "[Unable to read as plain text: binary or unsupported format]\n\n" +
                                             "File Name: ${file.name}\n" +
-                                            "File Size: ${file.sizeBytes} bytes\n" +
+                                            "File Size: ${formatBytes(file.sizeBytes)}\n" +
                                             "MIME Type: ${file.mimeType}"
                                 }
                             }
@@ -1456,19 +1482,31 @@ fun SecureFileViewerDialog(
                             verticalArrangement = Arrangement.Center,
                             modifier = Modifier.padding(24.dp)
                         ) {
-                            Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(64.dp))
+                            val displayIcon = when(file.fileType) {
+                                VaultFileType.ARCHIVE -> Icons.Default.FolderZip
+                                VaultFileType.APK -> Icons.Default.Android
+                                else -> Icons.Default.Security
+                            }
+                            Icon(displayIcon, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(64.dp))
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Secure File Preview",
+                                text = "Secure ${file.fileType.name} File",
                                 color = Color.White,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Preview is not supported for ${file.fileType} in the sandboxed viewer. Please export the file to view or execute it.",
+                                text = "Name: ${file.name}\nSize: ${formatBytes(file.sizeBytes)}\nType: ${file.mimeType}",
                                 color = Color(0xFF94A3B8),
                                 fontSize = 13.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text(
+                                text = "Preview is not supported for this format in the sandboxed viewer. Please export the file to access its contents.",
+                                color = Color(0xFF64748B),
+                                fontSize = 12.sp,
                                 textAlign = TextAlign.Center
                             )
                         }

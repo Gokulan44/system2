@@ -13,9 +13,15 @@ class SharedFileResolver @Inject constructor(
 ) {
     fun resolveSharedFile(uri: Uri): SharedFile? {
         val contentResolver = context.contentResolver
-        var name = "shared_file"
+        var mimeType = contentResolver.getType(uri)
+        
+        var name = when {
+            mimeType?.startsWith("image/") == true -> "shared_image_${System.currentTimeMillis()}"
+            mimeType?.startsWith("video/") == true -> "shared_video_${System.currentTimeMillis()}"
+            else -> "shared_file_${System.currentTimeMillis()}"
+        }
+        
         var size = 0L
-        val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
 
         try {
             contentResolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -23,7 +29,10 @@ class SharedFileResolver @Inject constructor(
                 val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
                 if (cursor.moveToFirst()) {
                     if (nameIndex != -1) {
-                        name = cursor.getString(nameIndex) ?: name
+                        val resolvedName = cursor.getString(nameIndex)
+                        if (!resolvedName.isNullOrBlank()) {
+                            name = resolvedName
+                        }
                     }
                     if (sizeIndex != -1) {
                         size = cursor.getLong(sizeIndex)
@@ -32,6 +41,16 @@ class SharedFileResolver @Inject constructor(
             }
         } catch (_: Exception) {}
 
-        return SharedFile(uri = uri, name = name, mimeType = mimeType, size = size)
+        // If MIME is still unknown, try to guess from name/extension
+        if (mimeType == null || mimeType == "application/octet-stream") {
+            val extension = name.substringAfterLast('.', "").lowercase()
+            if (extension.isNotEmpty()) {
+                mimeType = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+            }
+        }
+        
+        val finalMime = mimeType ?: "application/octet-stream"
+
+        return SharedFile(uri = uri, name = name, mimeType = finalMime, size = size)
     }
 }

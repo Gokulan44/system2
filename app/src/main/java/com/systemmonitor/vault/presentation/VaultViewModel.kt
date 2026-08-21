@@ -44,6 +44,10 @@ data class VaultAnalysisState(
     val documentSize: Long = 0L,
     val audioCount: Int = 0,
     val audioSize: Long = 0L,
+    val archiveCount: Int = 0,
+    val archiveSize: Long = 0L,
+    val apkCount: Int = 0,
+    val apkSize: Long = 0L,
     val otherCount: Int = 0,
     val otherSize: Long = 0L
 )
@@ -100,6 +104,10 @@ class VaultViewModel @Inject constructor(
         var docSize = 0L
         var audCount = 0
         var audSize = 0L
+        var arcCount = 0
+        var arcSize = 0L
+        var apkCount = 0
+        var apkSize = 0L
         var othCount = 0
         var othSize = 0L
 
@@ -122,6 +130,14 @@ class VaultViewModel @Inject constructor(
                     audCount++
                     audSize += file.sizeBytes
                 }
+                com.systemmonitor.vault.model.VaultFileType.ARCHIVE -> {
+                    arcCount++
+                    arcSize += file.sizeBytes
+                }
+                com.systemmonitor.vault.model.VaultFileType.APK -> {
+                    apkCount++
+                    apkSize += file.sizeBytes
+                }
                 else -> {
                     othCount++
                     othSize += file.sizeBytes
@@ -140,6 +156,10 @@ class VaultViewModel @Inject constructor(
             documentSize = docSize,
             audioCount = audCount,
             audioSize = audSize,
+            archiveCount = arcCount,
+            archiveSize = arcSize,
+            apkCount = apkCount,
+            apkSize = apkSize,
             otherCount = othCount,
             otherSize = othSize
         )
@@ -198,15 +218,12 @@ class VaultViewModel @Inject constructor(
     }
 
     fun setupVault(pin: String): Boolean {
-        var success = false
-        viewModelScope.launch {
-            success = authenticator.setupPin(pin)
-            if (success) {
-                _uiState.update { it.copy(isSetup = true, isLocked = false) }
-                logEvent("SETUP", "Secure Vault initialized and PIN created.")
-            }
+        val success = authenticator.setupPin(pin)
+        if (success) {
+            _uiState.update { it.copy(isSetup = true, isLocked = false) }
+            logEvent("SETUP", "Secure Vault initialized and PIN created.")
         }
-        return success // This won't work as expected because launch is async.
+        return success
     }
 
     suspend fun unlockVault(pin: String): Boolean {
